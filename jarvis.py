@@ -1,6 +1,6 @@
 import speech_recognition as sr
 import pyttsx3
-import google.generativeai as genai
+from google import genai
 import datetime
 
 
@@ -14,8 +14,7 @@ class Jarvis:
             self.motor.setProperty('voice', voices[0].id)
 
         # BEYIN: Gemini LLM
-        genai.configure(api_key=api_key)
-        self.beyin = genai.GenerativeModel('gemini-1.5-flash')
+        self.beyin = genai.Client(api_key=api_key)
 
         # KULAK: Speech-to-Text alıcısı
         self.kulak = sr.Recognizer()
@@ -92,7 +91,9 @@ class Jarvis:
                 "Kullanıcıya çok kısa ve net Türkçe yanıt ver. "
                 f"Kullanıcı komutu: {komut}"
             )
-            cevap = self.beyin.generate_content(prompt)
+            cevap = self.beyin.models.generate_content(
+                model="gemini-2.0-flash", contents=prompt
+            )
             self.konus(cevap.text.strip())
         except Exception:
             self.konus("Beyin modülüme erişimde geçici bir arıza var efendim.")
