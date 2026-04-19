@@ -5,23 +5,18 @@ from __future__ import annotations
 import json
 import os
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Type, Literal
+from typing import List, Type, Literal
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, ValidationError
 
 load_dotenv()
 
-# =====================
-# IMPORT (REAL MODE ONLY)
-# =====================
-
 try:
     import anthropic
     from anthropic import Anthropic
 except ImportError:
-    raise SystemExit("anthropic package required for REAL mode. Install with: pip install anthropic")
+    raise SystemExit("anthropic package required. Install with: pip install anthropic")
 
 # =====================
 # TRANSIENT SAFE GUARD
@@ -43,14 +38,13 @@ TRANSIENT = tuple(
 # CONFIG
 # =====================
 
-MODEL_PLANNER = os.getenv("MODEL_PLANNER")
 MODEL_EXECUTOR = os.getenv("MODEL_EXECUTOR")
-MODEL_CRITIC = os.getenv("MODEL_CRITIC")
-
+MODEL_PLANNER = os.getenv("MODEL_PLANNER")   # reserved for future orchestration
+MODEL_CRITIC = os.getenv("MODEL_CRITIC")     # reserved for future critique pass
 API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-if not all([MODEL_PLANNER, MODEL_EXECUTOR, MODEL_CRITIC, API_KEY]):
-    raise SystemExit("Missing required env vars")
+if not all([MODEL_EXECUTOR, API_KEY]):
+    raise SystemExit("Missing required env vars: MODEL_EXECUTOR, ANTHROPIC_API_KEY")
 
 # =====================
 # SCHEMAS
@@ -112,51 +106,89 @@ class RiskRegister(BaseModel):
 # LLM CALL
 # =====================
 
+def _build_json_prompt(task_prompt: str, schema: Type[BaseModel]) -> str:
+    schema_str = json.dumps(schema.model_json_schema(), indent=2)
+    return (
+        f"{task_prompt}\n\n"
+        f"Respond with raw JSON only — no markdown, no explanation.\n"
+        f"JSON must conform to this schema:\n{schema_str}"
+    )
+
 
 def call_llm_json(client, model: str, prompt: str, schema: Type[BaseModel]):
+    json_prompt = _build_json_prompt(prompt, schema)
     last_error = None
 
-    for i in range(3):
+    # Transient retry (network/rate-limit) — up to 3 attempts with backoff
+    for attempt in range(3):
         try:
             resp = client.messages.create(
                 model=model,
                 max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": json_prompt}],
             )
-
             raw = "".join(b.text for b in resp.content if b.type == "text")
-            return schema.model_validate_json(raw)
-
-        except (ValidationError, json.JSONDecodeError) as e:
-            last_error = e
-            prompt = f"Fix JSON:\n{e}\n\n{prompt}"
-
+            break
         except TRANSIENT as e:
             last_error = e
-            time.sleep(2 ** i)
+            if attempt == 2:
+                raise RuntimeError(f"Transient error after 3 attempts: {e}") from e
+            time.sleep(2 ** attempt)
+    else:
+        raise RuntimeError(last_error)
 
-    raise RuntimeError(last_error)
+    # Validation retry — keep original prompt context, only append error
+    for fix_attempt in range(3):
+        try:
+            return schema.model_validate_json(raw)
+        except (ValidationError, json.JSONDecodeError) as e:
+            if fix_attempt == 2:
+                raise RuntimeError(f"JSON validation failed after 3 fix attempts: {e}") from e
+            fix_prompt = (
+                f"{json_prompt}\n\n"
+                f"Your previous response was invalid. Error: {e}\n"
+                f"Return corrected raw JSON only."
+            )
+            resp = client.messages.create(
+                model=model,
+                max_tokens=2000,
+                messages=[{"role": "user", "content": fix_prompt}],
+            )
+            raw = "".join(b.text for b in resp.content if b.type == "text")
+
+    raise RuntimeError("Unreachable")
 
 
 # =====================
 # PIPELINE
 # =====================
 
-
 def run_pipeline(brief: str):
     client = Anthropic(api_key=API_KEY)
 
-    # ICP
-    icp = call_llm_json(client, MODEL_EXECUTOR, brief + "\nGenerate ICP", ICPResult)
+    icp = call_llm_json(
+        client, MODEL_EXECUTOR,
+        f"Brief: {brief}\n\nGenerate the Ideal Customer Profile (ICP).",
+        ICPResult,
+    )
 
-    # Use cases
-    usecases = call_llm_json(client, MODEL_EXECUTOR, json.dumps(icp.model_dump()) + "\nGenerate use cases", UseCaseSet)
+    usecases = call_llm_json(
+        client, MODEL_EXECUTOR,
+        f"ICP: {json.dumps(icp.model_dump())}\n\nGenerate AI use cases for this ICP.",
+        UseCaseSet,
+    )
 
-    # ROI
-    roi = call_llm_json(client, MODEL_EXECUTOR, json.dumps(usecases.model_dump()) + "\nEstimate ROI", ROISet)
+    roi = call_llm_json(
+        client, MODEL_EXECUTOR,
+        f"Use cases: {json.dumps(usecases.model_dump())}\n\nEstimate ROI for each use case.",
+        ROISet,
+    )
 
-    # Risk
-    risks = call_llm_json(client, MODEL_EXECUTOR, json.dumps(usecases.model_dump()) + "\nList risks", RiskRegister)
+    risks = call_llm_json(
+        client, MODEL_EXECUTOR,
+        f"Use cases: {json.dumps(usecases.model_dump())}\n\nList implementation risks for each use case.",
+        RiskRegister,
+    )
 
     return {
         "icp": icp.model_dump(),
@@ -169,7 +201,6 @@ def run_pipeline(brief: str):
 # =====================
 # RENDER
 # =====================
-
 
 def render(bundle: dict) -> str:
     md = ["# AI Opportunity Map\n"]
@@ -193,12 +224,29 @@ def render(bundle: dict) -> str:
 
 
 # =====================
-# TEST
+# TESTS
 # =====================
 
-
 def _test_schema():
-    assert ICPResult(segment="x", pains=["a"], current_workflows=["b"], buying_motives=["c"])
+    # Field presence and type validation
+    icp = ICPResult(segment="x", pains=["a"], current_workflows=["b"], buying_motives=["c"])
+    assert icp.segment == "x"
+    assert icp.pains == ["a"]
+
+    # Empty lists are valid (schema allows it)
+    empty = ICPResult(segment="s", pains=[], current_workflows=[], buying_motives=[])
+    assert empty.pains == []
+
+    # Missing required field must raise
+    try:
+        ICPResult(pains=["a"], current_workflows=["b"], buying_motives=["c"])  # no segment
+        raise AssertionError("Should have raised ValidationError")
+    except ValidationError:
+        pass
+
+    # JSON round-trip
+    uc = UseCase(name="n", workflow="w", problem="p", proposed_ai_solution="s", expected_value="v")
+    assert UseCase.model_validate_json(uc.model_dump_json()) == uc
 
 
 # =====================
