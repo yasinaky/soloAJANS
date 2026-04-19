@@ -42,9 +42,10 @@ MODEL_EXECUTOR = os.getenv("MODEL_EXECUTOR")
 MODEL_PLANNER = os.getenv("MODEL_PLANNER")   # reserved for future orchestration
 MODEL_CRITIC = os.getenv("MODEL_CRITIC")     # reserved for future critique pass
 API_KEY = os.getenv("ANTHROPIC_API_KEY")
+AUTH_TOKEN = os.getenv("ANTHROPIC_AUTH_TOKEN")
 
-if not all([MODEL_EXECUTOR, API_KEY]):
-    raise SystemExit("Missing required env vars: MODEL_EXECUTOR, ANTHROPIC_API_KEY")
+if not MODEL_EXECUTOR or not (API_KEY or AUTH_TOKEN):
+    raise SystemExit("Missing required env vars: MODEL_EXECUTOR + (ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN)")
 
 # =====================
 # SCHEMAS
@@ -106,6 +107,14 @@ class RiskRegister(BaseModel):
 # LLM CALL
 # =====================
 
+def _strip_markdown_json(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]
+        text = text.rsplit("```", 1)[0]
+    return text.strip()
+
+
 def _build_json_prompt(task_prompt: str, schema: Type[BaseModel]) -> str:
     schema_str = json.dumps(schema.model_json_schema(), indent=2)
     return (
@@ -124,10 +133,11 @@ def call_llm_json(client, model: str, prompt: str, schema: Type[BaseModel]):
         try:
             resp = client.messages.create(
                 model=model,
-                max_tokens=2000,
+                max_tokens=4096,
                 messages=[{"role": "user", "content": json_prompt}],
             )
             raw = "".join(b.text for b in resp.content if b.type == "text")
+            raw = _strip_markdown_json(raw)
             break
         except TRANSIENT as e:
             last_error = e
@@ -151,10 +161,10 @@ def call_llm_json(client, model: str, prompt: str, schema: Type[BaseModel]):
             )
             resp = client.messages.create(
                 model=model,
-                max_tokens=2000,
+                max_tokens=4096,
                 messages=[{"role": "user", "content": fix_prompt}],
             )
-            raw = "".join(b.text for b in resp.content if b.type == "text")
+            raw = _strip_markdown_json("".join(b.text for b in resp.content if b.type == "text"))
 
     raise RuntimeError("Unreachable")
 
@@ -164,7 +174,7 @@ def call_llm_json(client, model: str, prompt: str, schema: Type[BaseModel]):
 # =====================
 
 def run_pipeline(brief: str):
-    client = Anthropic(api_key=API_KEY)
+    client = Anthropic(api_key=API_KEY, auth_token=AUTH_TOKEN)
 
     icp = call_llm_json(
         client, MODEL_EXECUTOR,
