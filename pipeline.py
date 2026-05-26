@@ -212,8 +212,9 @@ def run_pipeline(brief: str):
 # RENDER
 # =====================
 
-def render(bundle: dict) -> str:
-    md = ["# AI Opportunity Map\n"]
+def render(bundle: dict, client: str = "") -> str:
+    title = f"# {client} — AI Opportunity Map\n" if client else "# AI Opportunity Map\n"
+    md = [title]
 
     md.append("## ICP")
     md.append(bundle["icp"]["segment"])
@@ -264,8 +265,23 @@ def _test_schema():
 # =====================
 
 if __name__ == "__main__":
+    import argparse
+    import sys
+
     _test_schema()
 
-    brief = "AI opportunity analysis for media company"
-    result = run_pipeline(brief)
-    print(render(result))
+    parser = argparse.ArgumentParser(description="AI Opportunity Map generator")
+    parser.add_argument("--brief", required=True, help="One-paragraph company/problem description")
+    parser.add_argument("--client", default="", help="Client name for the report header")
+    parser.add_argument("--out", default="", help="Output file path (markdown). Prints to stdout if omitted.")
+    args = parser.parse_args()
+
+    result = run_pipeline(args.brief)
+    output = render(result, client=args.client)
+
+    if args.out:
+        from pathlib import Path
+        Path(args.out).write_text(output, encoding="utf-8")
+        print(f"Rapor yazıldı: {args.out}")
+    else:
+        print(output)
