@@ -281,7 +281,15 @@ if __name__ == "__main__":
 
     if args.out:
         from pathlib import Path
-        Path(args.out).write_text(output, encoding="utf-8")
-        print(f"Rapor yazıldı: {args.out}")
+        out = Path(args.out)
+        if out.suffix.lower() == ".pdf":
+            import export_pdf
+            md_path = out.with_suffix(".md")
+            md_path.write_text(output, encoding="utf-8")
+            export_pdf.md_to_pdf(str(md_path), str(out))
+            md_path.unlink()
+        else:
+            out.write_text(output, encoding="utf-8")
+            print(f"Rapor yazıldı: {out}")
     else:
         print(output)
