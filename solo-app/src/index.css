@@ -148,4 +148,32 @@
   .fadein { animation: fadeIn 0.3s ease forwards; }
 
   @keyframes spin-slow { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+  @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes slideRight { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+
+  .modal-ov {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; padding: 24px;
+    animation: fadeIn 0.15s ease;
+  }
+  .modal-box {
+    background: var(--bg-c); border: 1px solid var(--bdl); border-radius: 16px;
+    padding: 28px; width: 100%; max-width: 540px; max-height: 85vh; overflow-y: auto;
+    animation: slideUp 0.2s ease;
+  }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-field { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 11px; font-weight: 700; color: var(--ts); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .drag-over { border-color: var(--cyan) !important; background: var(--cyan-d) !important; box-shadow: 0 0 20px rgba(0,212,255,0.15); }
+
+  .slide-panel {
+    position: fixed; right: 0; top: 56px; bottom: 0; width: 360px;
+    background: var(--bg-c); border-left: 1px solid var(--bd); z-index: 500;
+    overflow-y: auto; padding: 24px; animation: slideRight 0.25s ease;
+  }
+
+  input[type="range"] { accent-color: var(--cyan); height: 6px; }
 }
