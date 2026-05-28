@@ -1,0 +1,55 @@
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, Building2, Users, Grid3X3, Target, BookOpen, BarChart3, FileText, Wine, Settings } from 'lucide-react';
+import { useAgentStore } from '../../stores/index';
+
+const NAV = [
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: Building2, label: 'Departmanlar', href: '/departments', count: 6 },
+  { icon: Users, label: 'Ajanlar', href: '/agents', count: 12 },
+  { icon: Grid3X3, label: 'Workflows', href: '/workflows', count: 6 },
+  { icon: Target, label: 'Leads', href: '/leads', count: 5 },
+  { icon: BookOpen, label: 'Bilgi Merkezi', href: '/knowledge', count: 4 },
+  { icon: BarChart3, label: 'Analitik', href: '/analytics' },
+  { icon: FileText, label: 'Kararlar', href: '/decisions', count: 3 },
+  { icon: Wine, label: 'Ajan Kulübü', href: '/club', count: 12 },
+  { icon: Settings, label: 'Ayarlar', href: '/settings' },
+];
+
+export function Sidebar() {
+  const agents = useAgentStore((s) => s.agents);
+  const active = agents.filter((a) => a.status === 'active' || a.status === 'running').length;
+
+  return (
+    <div className="fixed left-0 top-0 h-screen w-60 bg-s border-r" style={{ borderColor: 'var(--bd)' }}>
+      <div className="px-4 py-5 border-b" style={{ borderColor: 'var(--bd)' }}>
+        <div className="text-xl font-bold grad-text">Solo OS</div>
+        <div className="text-xs ts mt-1">AI Company Operating System</div>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" style={{ height: 'calc(100vh - 140px)', overflowY: 'auto' }}>
+        {NAV.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink key={item.href} to={item.href} end={item.href === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <Icon size={17} />
+              <span>{item.label}</span>
+              {item.count && (
+                <span className="ml-auto text-xs bdg bdg-c" style={{ fontSize: '10px' }}>{item.count}</span>
+              )}
+            </NavLink>
+          );
+        })}
+      </nav>
+
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t" style={{ borderColor: 'var(--bd)' }}>
+        <div className="flex items-center justify-between text-xs mb-1">
+          <span className="ts">Aktif Ajanlar</span>
+          <span className="font-bold tcyan">{active}/12</span>
+        </div>
+        <div className="h-1.5 rounded-full" style={{ background: 'var(--bg-c)' }}>
+          <div className="h-full rounded-full" style={{ width: `${(active/12)*100}%`, background: 'linear-gradient(135deg, var(--cyan), var(--purple))' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
