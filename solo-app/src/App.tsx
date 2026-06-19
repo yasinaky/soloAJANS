@@ -11,14 +11,16 @@ import { Analytics } from './pages/Analytics';
 import { DecisionLog } from './pages/DecisionLog';
 import { AgentClub } from './pages/AgentClub';
 import { Settings } from './pages/Settings';
+import { useAutoEngine } from './hooks/useAutoEngine';
 
 function LayoutWrapper() {
+  useAutoEngine();
   return <Layout><Outlet /></Layout>;
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/soloAJANS">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<LayoutWrapper />}>

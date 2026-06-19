@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Building2, Users, Grid3X3, Target, BookOpen, BarChart3, FileText, Wine, Settings } from 'lucide-react';
-import { useAgentStore } from '../../stores/index';
+import { useAgentStore, useCompanyStore } from '../../stores/index';
 
 const NAV = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -18,12 +18,13 @@ const NAV = [
 export function Sidebar() {
   const agents = useAgentStore((s) => s.agents);
   const active = agents.filter((a) => a.status === 'active' || a.status === 'running').length;
+  const company = useCompanyStore((s) => s.company);
 
   return (
     <div className="fixed left-0 top-0 h-screen w-60 bg-s border-r" style={{ borderColor: 'var(--bd)' }}>
       <div className="px-4 py-5 border-b" style={{ borderColor: 'var(--bd)' }}>
-        <div className="text-xl font-bold grad-text">Solo OS</div>
-        <div className="text-xs ts mt-1">AI Company Operating System</div>
+        <div className="text-xl font-bold grad-text truncate">{company.name}</div>
+        <div className="text-xs ts mt-1 truncate">{company.tagline}</div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" style={{ height: 'calc(100vh - 140px)', overflowY: 'auto' }}>

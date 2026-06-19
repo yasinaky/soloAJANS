@@ -22,6 +22,14 @@ export interface Task {
   agent_id: string|null; agent_name?: string;
   priority: Priority; created_at: string; updated_at: string;
   due_date?: string; tags: string[]; progress?: number;
+  output?: string; output_at?: string; approved?: boolean;
+}
+
+export interface Company {
+  name: string; tagline: string; mission: string;
+  revenue_target: number; team_size_target: number;
+  autonomy_limit: string; spend_limit: number;
+  default_model: string; require_approval: boolean;
 }
 export interface Lead {
   id: string; company: string; contact_name: string;
