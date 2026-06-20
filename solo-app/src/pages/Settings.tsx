@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Moon, Sun, Bell, Shield, Zap, Building2, Trash2, Save } from 'lucide-react';
+import { Moon, Sun, Bell, Shield, Zap, Building2, Trash2, Save, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useThemeStore, useCompanyStore, useAgentStore, useTaskStore, useLeadStore, useDecisionStore, useKnowledgeStore } from '../stores/index';
 
 export function Settings() {
@@ -7,6 +7,7 @@ export function Settings() {
   const { company, updateCompany } = useCompanyStore();
   const [form, setForm] = useState({ ...company });
   const [saved, setSaved] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   const agentStore = useAgentStore();
   const taskStore = useTaskStore();
@@ -135,19 +136,44 @@ export function Settings() {
         </div>
       </div>
 
-      {/* AI Model */}
+      {/* AI Model + API Key */}
       <div className="glass p-6">
-        <h2 className="text-lg font-semibold tp mb-4 flex items-center gap-2"><Zap size={18} />AI Model Tercihleri</h2>
-        <div className="form-field">
-          <label className="form-label">Varsayılan Model</label>
-          <select value={form.default_model} onChange={(e) => set('default_model', e.target.value)} className="sel" style={{ width: '100%' }}>
-            <option>Claude 3</option>
-            <option>Claude 3 Opus</option>
-            <option>GPT-4 Turbo</option>
-            <option>GPT-4</option>
-            <option>GPT-3.5 Turbo</option>
-            <option>Gemini Pro</option>
-          </select>
+        <h2 className="text-lg font-semibold tp mb-4 flex items-center gap-2"><Zap size={18} />AI Model & API Bağlantısı</h2>
+        <div className="space-y-4">
+          <div className="form-field">
+            <label className="form-label">Varsayılan Model</label>
+            <select value={form.default_model} onChange={(e) => set('default_model', e.target.value)} className="sel" style={{ width: '100%' }}>
+              <option value="claude-opus-4-8">Claude Opus 4.8 (En güçlü)</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Dengeli)</option>
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Hızlı)</option>
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label className="form-label flex items-center gap-2">
+              <KeyRound size={12} />Anthropic API Key
+              <span className="ml-auto" style={{ color: form.anthropic_api_key ? 'var(--green)' : 'var(--yellow)', fontWeight: 700 }}>
+                {form.anthropic_api_key ? '✓ Bağlı — Gerçek AI aktif' : '⚠ Yok — Demo mod'}
+              </span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={form.anthropic_api_key || ''}
+                onChange={(e) => set('anthropic_api_key', e.target.value)}
+                className="inp flex-1"
+                placeholder="sk-ant-api03-..."
+              />
+              <button type="button" onClick={() => setShowKey(!showKey)} className="btn-g px-3">
+                {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <p className="text-xs tm mt-1">
+              Key varsa ajanlar Claude API'yi gerçekten çağırır — görevleri gerçekten yapar.
+              Yoksa demo şablonlar kullanılır.
+              Key'i <a href="https://console.anthropic.com" target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>console.anthropic.com</a>'dan alabilirsin.
+            </p>
+          </div>
         </div>
       </div>
 

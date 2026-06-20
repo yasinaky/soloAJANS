@@ -128,6 +128,7 @@ export const useCompanyStore = create<CompanyStore>()(
         default_model: 'claude-opus-4-8',
         require_approval: true,
         setup_complete: false,
+        anthropic_api_key: '',
       },
       updateCompany: (u) => set((s) => ({ company: { ...s.company, ...u } })),
     }),
