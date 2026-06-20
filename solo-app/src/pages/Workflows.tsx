@@ -148,15 +148,22 @@ export function Workflows() {
                             </div>
                           )}
 
-                          {/* Output available */}
+                          {/* Output available — review */}
                           {t.output && t.status === 'review' && (
                             <button onClick={(e) => { e.stopPropagation(); setOutput(t); }}
                               className="btn-p text-xs py-1.5 px-3 mt-2 w-full justify-center flex items-center gap-1">
                               <Eye size={12} />Çıktıyı İncele & Onayla
                             </button>
                           )}
+                          {/* Output available — done */}
+                          {t.output && t.status === 'done' && (
+                            <button onClick={(e) => { e.stopPropagation(); setOutput(t); }}
+                              className="btn-g text-xs py-1.5 px-3 mt-2 w-full justify-center flex items-center gap-1">
+                              <Eye size={12} />Çıktıyı Gör
+                            </button>
+                          )}
                           {t.approved && t.status === 'done' && (
-                            <div className="text-xs tgreen mt-2 flex items-center gap-1"><CheckCircle size={11} />Onaylandı · {timeAgo(t.output_at)}</div>
+                            <div className="text-xs tgreen mt-1 flex items-center gap-1"><CheckCircle size={11} />Onaylandı · {timeAgo(t.output_at)}</div>
                           )}
 
                           <div className="flex gap-1 mt-2 pt-2 border-t" style={{ borderColor: 'var(--bd)' }}>
@@ -211,15 +218,24 @@ export function Workflows() {
               {output.output}
             </div>
 
-            <div className="flex gap-3">
-              <button onClick={() => setOutput(null)} className="btn-g flex-1 justify-center">Kapat</button>
-              <button onClick={() => { moveTask(output.id, 'blocked'); setOutput(null); }} className="btn-d flex-1 justify-center">
-                🚫 Reddet
-              </button>
-              <button onClick={() => approve(output)} className="btn-p flex-1 justify-center">
-                <CheckCircle size={16} />Onayla & Tamamla
-              </button>
-            </div>
+            {output.status === 'done' ? (
+              <div className="flex gap-3">
+                <div className="flex items-center gap-2 text-sm tgreen flex-1">
+                  <CheckCircle size={15} />Onaylandı — {timeAgo(output.output_at)}
+                </div>
+                <button onClick={() => setOutput(null)} className="btn-g">Kapat</button>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button onClick={() => setOutput(null)} className="btn-g flex-1 justify-center">Kapat</button>
+                <button onClick={() => { moveTask(output.id, 'blocked'); setOutput(null); }} className="btn-d flex-1 justify-center">
+                  🚫 Reddet
+                </button>
+                <button onClick={() => approve(output)} className="btn-p flex-1 justify-center">
+                  <CheckCircle size={16} />Onayla & Tamamla
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
