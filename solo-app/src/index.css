@@ -176,4 +176,25 @@
   }
 
   input[type="range"] { accent-color: var(--cyan); height: 6px; }
+
+  @keyframes godBorder {
+    0%   { border-color: #ffd700; box-shadow: 0 0 16px #ffd70066, 0 0 40px #ffd70022; }
+    20%  { border-color: #ff6b6b; box-shadow: 0 0 16px #ff6b6b66, 0 0 40px #ff6b6b22; }
+    40%  { border-color: #00d4ff; box-shadow: 0 0 16px #00d4ff66, 0 0 40px #00d4ff22; }
+    60%  { border-color: #b44fec; box-shadow: 0 0 16px #b44fec66, 0 0 40px #b44fec22; }
+    80%  { border-color: #10b981; box-shadow: 0 0 16px #10b98166, 0 0 40px #10b98122; }
+    100% { border-color: #ffd700; box-shadow: 0 0 16px #ffd70066, 0 0 40px #ffd70022; }
+  }
+  .god-card { animation: godBorder 3s linear infinite; }
+
+  @keyframes godPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.03); }
+  }
+  .god-badge {
+    background: linear-gradient(135deg, #ffd700, #ff6b6b, #b44fec);
+    color: #fff; font-weight: 900; font-size: 10px; letter-spacing: 0.08em;
+    padding: 2px 8px; border-radius: 99px;
+    animation: godPulse 1.5s ease-in-out infinite;
+  }
 }

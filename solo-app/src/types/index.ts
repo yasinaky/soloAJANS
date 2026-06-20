@@ -14,7 +14,7 @@ export interface Agent {
   schedule: string; guardrails: string[];
   success_rate: number; tasks_completed: number;
   last_run: string; queue_length: number; created_at: string;
-  mood?: string; xp?: number; level?: number; avatar_color?: string;
+  mood?: string; xp?: number; level?: number; avatar_color?: string; godmode?: boolean;
 }
 export interface Task {
   id: string; title: string; description: string;

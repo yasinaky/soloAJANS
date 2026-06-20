@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Filter, Zap, Trash2, X, Star, Clock, ChevronRight, Sparkles } from 'lucide-react';
-import { useAgentStore } from '../stores/index';
+import { useAgentStore, useNotifStore } from '../stores/index';
 import { DEPARTMENTS } from '../data/mockData';
 import { AgentModal } from '../components/modals/AgentModal';
 import type { Agent } from '../types/index';
@@ -21,11 +21,16 @@ export function buildAutoAgents(): Omit<Agent, 'id'>[] {
   return AUTO_AGENTS;
 }
 
+const GOD_TOOLS = ['Claude API', 'GitHub', 'Terminal', 'Docker', 'AWS', 'Kubernetes', 'Slack', 'Notion', 'Figma', 'SQL', 'Python', 'Tableau', 'Salesforce', 'HubSpot', 'Zendesk', 'LinkedIn', 'Analytics', 'Stripe', 'Jira', 'VS Code'];
+
 export function Agents() {
   const agents = useAgentStore((s) => s.agents);
   const deleteAgent = useAgentStore((s) => s.deleteAgent);
   const setStatus = useAgentStore((s) => s.setStatus);
   const addAgent = useAgentStore((s) => s.addAgent);
+  const updateAgent = useAgentStore((s) => s.updateAgent);
+  const addXP = useAgentStore((s) => s.addXP);
+  const addNotif = useNotifStore((s) => s.add);
 
   const [dept, setDept] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -43,25 +48,61 @@ export function Agents() {
   const createAutoTeam = () => {
     const existing = agents.map((a) => a.department);
     const toAdd = AUTO_AGENTS.filter((a) => !existing.includes(a.department));
-    if (toAdd.length === 0) {
-      alert('Tüm departmanlar için zaten ajan var!');
-      return;
-    }
+    if (toAdd.length === 0) { alert('Tüm departmanlar için zaten ajan var!'); return; }
     toAdd.forEach((a) => addAgent({ ...a, id: Math.random().toString(36).slice(2) }));
-    alert(`${toAdd.length} ajan otomatik oluşturuldu! İstersen her birini düzenleyebilirsin.`);
+    alert(`${toAdd.length} ajan otomatik oluşturuldu!`);
   };
+
+  const activateGodMode = () => {
+    if (agents.length === 0) { alert('Önce ajan oluştur!'); return; }
+    agents.forEach((a) => {
+      updateAgent(a.id, {
+        godmode: true,
+        model: 'claude-opus-4-8',
+        autonomy_level: 'full',
+        status: 'active',
+        schedule: '7/24 — Kesintisiz',
+        tools: GOD_TOOLS,
+        guardrails: [],
+        success_rate: 99,
+        mood: 'GOD MODE ⚡',
+      });
+      addXP(a.id, 10000);
+    });
+    addNotif({ title: '⚡ GOD MODE AKTİF', message: `${agents.length} ajan tam güce kavuştu — sınır yok!`, type: 'success' });
+  };
+
+  const deactivateGodMode = () => {
+    agents.forEach((a) => updateAgent(a.id, { godmode: false, autonomy_level: 'medium', schedule: 'Hafta içi 09-18', guardrails: ['Kullanıcı onayı gerekebilir'], mood: 'Normal' }));
+    addNotif({ title: 'God Mode kapatıldı', message: 'Ajanlar normal moda döndü', type: 'info' });
+  };
+
+  const anyGodMode = agents.some((a) => a.godmode);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tp">AI Ajanlar</h1>
+          <h1 className="text-3xl font-bold tp flex items-center gap-3">
+            AI Ajanlar
+            {anyGodMode && <span className="god-badge">⚡ GOD MODE</span>}
+          </h1>
           <p className="ts text-sm mt-1">{agents.length} ajan yönetiliyor · {agents.filter(a=>a.status==='active'||a.status==='running').length} aktif</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
           <button onClick={createAutoTeam} className="btn-g">
             <Sparkles size={16} />Otomatik Ekip Oluştur
           </button>
+          {anyGodMode ? (
+            <button onClick={deactivateGodMode} className="btn-g" style={{ borderColor: '#ffd700', color: '#ffd700' }}>
+              ⚡ God Mode Kapat
+            </button>
+          ) : (
+            <button onClick={activateGodMode}
+              style={{ background: 'linear-gradient(135deg,#ffd700,#ff6b6b,#b44fec)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+              ⚡ God Mode Aktif Et
+            </button>
+          )}
           <button onClick={() => setModal({ open: true, agent: null })} className="btn-p">
             <Plus size={16} />Ajan Ekle
           </button>
@@ -83,7 +124,7 @@ export function Agents() {
 
       <div className="grid grid-cols-3 gap-4">
         {filtered.map((a) => (
-          <div key={a.id} className="glass p-4 cursor-pointer" onClick={() => setDetail(a)}>
+          <div key={a.id} className={`glass p-4 cursor-pointer ${a.godmode ? 'god-card' : ''}`} onClick={() => setDetail(a)}>
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -94,7 +135,10 @@ export function Agents() {
                   <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2" style={{ borderColor:'var(--bg-c)', background: SC_DOT[a.status] }} />
                 </div>
                 <div>
-                  <h3 className="font-bold tp text-sm">{a.name}</h3>
+                  <h3 className="font-bold tp text-sm flex items-center gap-1.5">
+                    {a.name}
+                    {a.godmode && <span className="god-badge" style={{ fontSize: 9 }}>⚡GOD</span>}
+                  </h3>
                   <p className="text-xs tm">{a.role}</p>
                 </div>
               </div>
