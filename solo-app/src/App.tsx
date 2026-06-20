@@ -13,25 +13,31 @@ import { DecisionLog } from './pages/DecisionLog';
 import { AgentClub } from './pages/AgentClub';
 import { Settings } from './pages/Settings';
 import { useAutoEngine } from './hooks/useAutoEngine';
-import { useCompanyStore } from './stores/index';
-import { Building2, Rocket } from 'lucide-react';
+import { useCompanyStore, useAgentStore } from './stores/index';
+import { Building2, Rocket, Sparkles } from 'lucide-react';
+import { buildAutoAgents } from './pages/Agents';
 
 function SetupModal() {
   const { company, updateCompany } = useCompanyStore();
+  const addAgent = useAgentStore((s) => s.addAgent);
   const [name, setName] = useState('');
   const [tagline, setTagline] = useState('');
+  const [autoTeam, setAutoTeam] = useState(true);
   const [error, setError] = useState('');
 
   if (company.setup_complete) return null;
 
   const handleSave = () => {
     if (!name.trim()) { setError('Şirket adı zorunlu'); return; }
+    if (autoTeam) {
+      buildAutoAgents().forEach((a) => addAgent({ ...a, id: Math.random().toString(36).slice(2) }));
+    }
     updateCompany({ name: name.trim(), tagline: tagline.trim(), setup_complete: true });
   };
 
   return (
     <div className="modal-ov" style={{ zIndex: 9999 }}>
-      <div className="modal-box" style={{ maxWidth: 480 }}>
+      <div className="modal-box" style={{ maxWidth: 500 }}>
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">🚀</div>
           <h2 className="text-2xl font-bold tp">Solo OS'e Hoş Geldin</h2>
@@ -61,19 +67,34 @@ function SetupModal() {
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             />
           </div>
+
+          <label className="flex items-start gap-3 cursor-pointer p-4 rounded-xl"
+            style={{ background: autoTeam ? 'rgba(0,212,255,0.08)' : 'var(--bg-s)', border: `1px solid ${autoTeam ? 'rgba(0,212,255,0.3)' : 'var(--bd)'}`, transition: 'all 0.2s' }}>
+            <input type="checkbox" checked={autoTeam} onChange={(e) => setAutoTeam(e.target.checked)} className="w-4 h-4 mt-0.5 cursor-pointer flex-shrink-0" />
+            <div>
+              <div className="font-semibold tp text-sm flex items-center gap-1.5">
+                <Sparkles size={14} style={{ color: 'var(--cyan)' }} />
+                Başlangıç AI ekibini otomatik oluştur
+              </div>
+              <div className="text-xs tm mt-1">
+                Her departman için 1 ajan oluşturulur: Geliştirici, İçerik Yazarı, Destek Ajanı, Tasarımcı, Satış Temsilcisi, Veri Analisti.
+                Sonradan düzenleyebilir veya silebilirsin.
+              </div>
+            </div>
+          </label>
         </div>
 
-        <div className="mt-6 p-4 rounded-lg text-sm" style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.2)' }}>
-          <div className="font-semibold tp mb-2 flex items-center gap-2"><Building2 size={14} />Başlangıç Adımları</div>
+        <div className="mt-5 p-4 rounded-lg" style={{ background: 'var(--bg-s)', border: '1px solid var(--bd)' }}>
+          <div className="font-semibold tp mb-2 text-sm flex items-center gap-2"><Building2 size={14} />Nasıl çalışır?</div>
           <div className="space-y-1 ts text-xs">
-            <div>1️⃣ Şirketi kur (şu an bu adım)</div>
-            <div>2️⃣ AI ajanlarını oluştur (Ajanlar sayfası)</div>
-            <div>3️⃣ Görev ver — sistem otomatik çalıştırır</div>
+            <div>1️⃣ Şirketi kur → AI ekibin hazır</div>
+            <div>2️⃣ Workflows'a git → Görev oluştur, ajana ata</div>
+            <div>3️⃣ Sistem otomatik çalıştırır → çıktı üretir</div>
             <div>4️⃣ Çıktıyı incele ve onayla</div>
           </div>
         </div>
 
-        <button onClick={handleSave} className="btn-p w-full justify-center mt-6">
+        <button onClick={handleSave} className="btn-p w-full justify-center mt-5">
           <Rocket size={16} />Şirketi Kur & Başla
         </button>
       </div>

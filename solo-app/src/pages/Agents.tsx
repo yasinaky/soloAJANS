@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Filter, Zap, Trash2, X, Star, Clock, ChevronRight } from 'lucide-react';
+import { Plus, Filter, Zap, Trash2, X, Star, Clock, ChevronRight, Sparkles } from 'lucide-react';
 import { useAgentStore } from '../stores/index';
 import { DEPARTMENTS } from '../data/mockData';
 import { AgentModal } from '../components/modals/AgentModal';
@@ -8,10 +8,24 @@ import type { Agent } from '../types/index';
 const SC: Record<string, string> = { active:'bdg-g', running:'bdg-c', idle:'bdg-y', paused:'bdg-gr', error:'bdg-r' };
 const SC_DOT: Record<string, string> = { active:'var(--green)', running:'var(--cyan)', idle:'var(--yellow)', paused:'#6b7280', error:'var(--red)' };
 
+const AUTO_AGENTS: Omit<Agent, 'id'>[] = [
+  { name:'Geliştirici', department:'engineering', role:'Full Stack Developer', objective:'Yeni özellikler geliştir, bug fix yap, kod kalitesini koru', model:'claude-opus-4-8', tools:['GitHub','Terminal','VS Code'], autonomy_level:'high', status:'active', schedule:'Hafta içi 09-18', guardrails:['Production değişiklikleri onay gerektirir'], success_rate:0, tasks_completed:0, last_run:'Henüz çalışmadı', queue_length:0, created_at:new Date().toISOString(), xp:0, level:1, avatar_color:'#00d4ff' },
+  { name:'İçerik Yazarı', department:'marketing', role:'Content Creator', objective:'SEO uyumlu içerik üret, blog ve sosyal medya paylaşımları hazırla', model:'claude-sonnet-4-6', tools:['Notion','SEO Tools'], autonomy_level:'medium', status:'active', schedule:'Her gün 10-16', guardrails:['Marka sesi tutarlılığı'], success_rate:0, tasks_completed:0, last_run:'Henüz çalışmadı', queue_length:0, created_at:new Date().toISOString(), xp:0, level:1, avatar_color:'#f59e0b' },
+  { name:'Destek Ajanı', department:'support', role:'Customer Support', objective:'Müşteri taleplerini çöz, CSAT skorunu yüksek tut', model:'claude-haiku-4-5-20251001', tools:['Zendesk','Email'], autonomy_level:'high', status:'active', schedule:'7/24', guardrails:['Empati önce, çözüm sonra'], success_rate:0, tasks_completed:0, last_run:'Henüz çalışmadı', queue_length:0, created_at:new Date().toISOString(), xp:0, level:1, avatar_color:'#10b981' },
+  { name:'Tasarımcı', department:'design', role:'UI/UX Designer', objective:'Kullanıcı dostu arayüzler tasarla, marka kimliğini koru', model:'claude-sonnet-4-6', tools:['Figma','Adobe XD'], autonomy_level:'medium', status:'active', schedule:'Hafta içi 10-18', guardrails:['Design system uyumu zorunlu'], success_rate:0, tasks_completed:0, last_run:'Henüz çalışmadı', queue_length:0, created_at:new Date().toISOString(), xp:0, level:1, avatar_color:'#ec4899' },
+  { name:'Satış Temsilcisi', department:'sales', role:'Sales Representative', objective:'Leadleri qualify et, outreach yaz, deal kapat', model:'claude-sonnet-4-6', tools:['LinkedIn','Email','CRM'], autonomy_level:'medium', status:'active', schedule:'Hafta içi 08-17', guardrails:['GDPR uyumlu, spam yok'], success_rate:0, tasks_completed:0, last_run:'Henüz çalışmadı', queue_length:0, created_at:new Date().toISOString(), xp:0, level:1, avatar_color:'#ef4444' },
+  { name:'Veri Analisti', department:'analytics', role:'Data Analyst', objective:'Veri analizi yap, KPI raporları hazırla, içgörüler üret', model:'claude-opus-4-8', tools:['Python','SQL','Tableau'], autonomy_level:'high', status:'active', schedule:'Hafta içi 09-17', guardrails:['Veri gizliliğine uy'], success_rate:0, tasks_completed:0, last_run:'Henüz çalışmadı', queue_length:0, created_at:new Date().toISOString(), xp:0, level:1, avatar_color:'#7c3aed' },
+];
+
+export function buildAutoAgents(): Omit<Agent, 'id'>[] {
+  return AUTO_AGENTS;
+}
+
 export function Agents() {
   const agents = useAgentStore((s) => s.agents);
   const deleteAgent = useAgentStore((s) => s.deleteAgent);
   const setStatus = useAgentStore((s) => s.setStatus);
+  const addAgent = useAgentStore((s) => s.addAgent);
 
   const [dept, setDept] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -26,6 +40,17 @@ export function Agents() {
   const openEdit = (a: Agent) => { setModal({ open: true, agent: a }); };
   const onDelete = (id: string) => { deleteAgent(id); setConfirm(null); if (detail?.id === id) setDetail(null); };
 
+  const createAutoTeam = () => {
+    const existing = agents.map((a) => a.department);
+    const toAdd = AUTO_AGENTS.filter((a) => !existing.includes(a.department));
+    if (toAdd.length === 0) {
+      alert('Tüm departmanlar için zaten ajan var!');
+      return;
+    }
+    toAdd.forEach((a) => addAgent({ ...a, id: Math.random().toString(36).slice(2) }));
+    alert(`${toAdd.length} ajan otomatik oluşturuldu! İstersen her birini düzenleyebilirsin.`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -33,9 +58,14 @@ export function Agents() {
           <h1 className="text-3xl font-bold tp">AI Ajanlar</h1>
           <p className="ts text-sm mt-1">{agents.length} ajan yönetiliyor · {agents.filter(a=>a.status==='active'||a.status==='running').length} aktif</p>
         </div>
-        <button onClick={() => setModal({ open: true, agent: null })} className="btn-p">
-          <Plus size={16} />Ajan Ekle
-        </button>
+        <div className="flex gap-2">
+          <button onClick={createAutoTeam} className="btn-g">
+            <Sparkles size={16} />Otomatik Ekip Oluştur
+          </button>
+          <button onClick={() => setModal({ open: true, agent: null })} className="btn-p">
+            <Plus size={16} />Ajan Ekle
+          </button>
+        </div>
       </div>
 
       <div className="glass p-4 flex items-center gap-3 flex-wrap">
