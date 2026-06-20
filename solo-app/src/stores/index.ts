@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Agent,AgentStatus,Task,TaskStatus,Lead,LeadStatus,DecisionLog,KnowledgeItem,Notification,Company } from '../types';
-import { AGENTS, TASKS, LEADS, DECISIONS, KNOWLEDGE } from '../data/mockData';
 
 // AGENT STORE
 interface AgentStore {
@@ -15,7 +14,7 @@ interface AgentStore {
 export const useAgentStore = create<AgentStore>()(
   persist(
     (set) => ({
-      agents: AGENTS,
+      agents: [],
       addAgent: (a) => set((s) => ({ agents: [...s.agents, a] })),
       updateAgent: (id, u) => set((s) => ({ agents: s.agents.map((a) => a.id===id ? {...a,...u} : a) })),
       deleteAgent: (id) => set((s) => ({ agents: s.agents.filter((a) => a.id!==id) })),
@@ -26,7 +25,7 @@ export const useAgentStore = create<AgentStore>()(
         return {...a, xp:nx, level: Math.floor(nx/1000)+1};
       })})),
     }),
-    { name: 'solo-agents' }
+    { name: 'solo-agents', version: 2 }
   )
 );
 
@@ -41,13 +40,13 @@ interface TaskStore {
 export const useTaskStore = create<TaskStore>()(
   persist(
     (set) => ({
-      tasks: TASKS,
+      tasks: [],
       addTask: (t) => set((s) => ({ tasks: [...s.tasks, t] })),
       updateTask: (id, u) => set((s) => ({ tasks: s.tasks.map((t) => t.id===id ? {...t,...u} : t) })),
       deleteTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id!==id) })),
       moveTask: (id, st) => set((s) => ({ tasks: s.tasks.map((t) => t.id===id ? {...t,status:st,updated_at:new Date().toISOString()} : t) })),
     }),
-    { name: 'solo-tasks' }
+    { name: 'solo-tasks', version: 2 }
   )
 );
 
@@ -62,13 +61,13 @@ interface LeadStore {
 export const useLeadStore = create<LeadStore>()(
   persist(
     (set) => ({
-      leads: LEADS,
+      leads: [],
       addLead: (l) => set((s) => ({ leads: [...s.leads, l] })),
       updateLead: (id, u) => set((s) => ({ leads: s.leads.map((l) => l.id===id ? {...l,...u} : l) })),
       deleteLead: (id) => set((s) => ({ leads: s.leads.filter((l) => l.id!==id) })),
       moveStatus: (id, st) => set((s) => ({ leads: s.leads.map((l) => l.id===id ? {...l,status:st,updated_at:new Date().toISOString()} : l) })),
     }),
-    { name: 'solo-leads' }
+    { name: 'solo-leads', version: 2 }
   )
 );
 
@@ -82,12 +81,12 @@ interface DecisionStore {
 export const useDecisionStore = create<DecisionStore>()(
   persist(
     (set) => ({
-      decisions: DECISIONS,
+      decisions: [],
       addDecision: (d) => set((s) => ({ decisions: [...s.decisions, d] })),
       updateDecision: (id, u) => set((s) => ({ decisions: s.decisions.map((d) => d.id===id ? {...d,...u} : d) })),
       deleteDecision: (id) => set((s) => ({ decisions: s.decisions.filter((d) => d.id!==id) })),
     }),
-    { name: 'solo-decisions' }
+    { name: 'solo-decisions', version: 2 }
   )
 );
 
@@ -101,12 +100,12 @@ interface KnowledgeStore {
 export const useKnowledgeStore = create<KnowledgeStore>()(
   persist(
     (set) => ({
-      items: KNOWLEDGE,
+      items: [],
       addItem: (i) => set((s) => ({ items: [...s.items, i] })),
       updateItem: (id, u) => set((s) => ({ items: s.items.map((i) => i.id===id ? {...i,...u} : i) })),
       deleteItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id!==id) })),
     }),
-    { name: 'solo-knowledge' }
+    { name: 'solo-knowledge', version: 2 }
   )
 );
 
@@ -119,19 +118,20 @@ export const useCompanyStore = create<CompanyStore>()(
   persist(
     (set) => ({
       company: {
-        name: 'My AI Company',
-        tagline: 'AI Company Operating System',
-        mission: 'Building the future with autonomous AI agents',
-        revenue_target: 100000,
-        team_size_target: 50,
+        name: '',
+        tagline: '',
+        mission: '',
+        revenue_target: 0,
+        team_size_target: 0,
         autonomy_limit: 'medium',
         spend_limit: 5000,
-        default_model: 'Claude 3',
+        default_model: 'claude-opus-4-8',
         require_approval: true,
+        setup_complete: false,
       },
       updateCompany: (u) => set((s) => ({ company: { ...s.company, ...u } })),
     }),
-    { name: 'solo-company' }
+    { name: 'solo-company', version: 2 }
   )
 );
 
@@ -164,14 +164,12 @@ interface NotifStore {
 export const useNotifStore = create<NotifStore>()(
   persist(
     (set, get) => ({
-      notifs: [
-        { id:'n1', title:'Sistem Hazır', message:'Solo OS başarıyla başlatıldı', type:'success' as const, read:false, created_at:new Date().toISOString() },
-      ],
+      notifs: [],
       add: (n) => set((s) => ({ notifs: [{ ...n, id:Math.random().toString(36).slice(2), created_at:new Date().toISOString(), read:false }, ...s.notifs].slice(0,50) })),
       read: (id) => set((s) => ({ notifs: s.notifs.map((n) => n.id===id ? {...n,read:true} : n) })),
       remove: (id) => set((s) => ({ notifs: s.notifs.filter((n) => n.id!==id) })),
       unread: () => get().notifs.filter((n) => !n.read).length,
     }),
-    { name: 'solo-notifs' }
+    { name: 'solo-notifs', version: 2 }
   )
 );

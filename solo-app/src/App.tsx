@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
@@ -12,10 +13,82 @@ import { DecisionLog } from './pages/DecisionLog';
 import { AgentClub } from './pages/AgentClub';
 import { Settings } from './pages/Settings';
 import { useAutoEngine } from './hooks/useAutoEngine';
+import { useCompanyStore } from './stores/index';
+import { Building2, Rocket } from 'lucide-react';
+
+function SetupModal() {
+  const { company, updateCompany } = useCompanyStore();
+  const [name, setName] = useState('');
+  const [tagline, setTagline] = useState('');
+  const [error, setError] = useState('');
+
+  if (company.setup_complete) return null;
+
+  const handleSave = () => {
+    if (!name.trim()) { setError('Şirket adı zorunlu'); return; }
+    updateCompany({ name: name.trim(), tagline: tagline.trim(), setup_complete: true });
+  };
+
+  return (
+    <div className="modal-ov" style={{ zIndex: 9999 }}>
+      <div className="modal-box" style={{ maxWidth: 480 }}>
+        <div className="text-center mb-6">
+          <div className="text-5xl mb-3">🚀</div>
+          <h2 className="text-2xl font-bold tp">Solo OS'e Hoş Geldin</h2>
+          <p className="ts text-sm mt-2">AI destekli şirket işletim sistemin hazır.<br />Başlamak için şirket adını gir.</p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="form-field">
+            <label className="form-label">Şirket Adı *</label>
+            <input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(''); }}
+              className="inp"
+              placeholder="örn: Nexus AI, CodeForge, DataPulse..."
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            />
+            {error && <p className="text-xs tred mt-1">{error}</p>}
+          </div>
+          <div className="form-field">
+            <label className="form-label">Slogan <span className="tm">(opsiyonel)</span></label>
+            <input
+              value={tagline}
+              onChange={(e) => setTagline(e.target.value)}
+              className="inp"
+              placeholder="örn: AI ile büyüyoruz"
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 rounded-lg text-sm" style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.2)' }}>
+          <div className="font-semibold tp mb-2 flex items-center gap-2"><Building2 size={14} />Başlangıç Adımları</div>
+          <div className="space-y-1 ts text-xs">
+            <div>1️⃣ Şirketi kur (şu an bu adım)</div>
+            <div>2️⃣ AI ajanlarını oluştur (Ajanlar sayfası)</div>
+            <div>3️⃣ Görev ver — sistem otomatik çalıştırır</div>
+            <div>4️⃣ Çıktıyı incele ve onayla</div>
+          </div>
+        </div>
+
+        <button onClick={handleSave} className="btn-p w-full justify-center mt-6">
+          <Rocket size={16} />Şirketi Kur & Başla
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function LayoutWrapper() {
   useAutoEngine();
-  return <Layout><Outlet /></Layout>;
+  return (
+    <>
+      <SetupModal />
+      <Layout><Outlet /></Layout>
+    </>
+  );
 }
 
 export default function App() {

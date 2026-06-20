@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Moon, Sun, Bell, Shield, Zap, Building2, Trash2, Save } from 'lucide-react';
 import { useThemeStore, useCompanyStore, useAgentStore, useTaskStore, useLeadStore, useDecisionStore, useKnowledgeStore } from '../stores/index';
-import { AGENTS, TASKS, LEADS, DECISIONS, KNOWLEDGE } from '../data/mockData';
 
 export function Settings() {
   const { theme, toggle } = useThemeStore();
@@ -24,27 +23,13 @@ export function Settings() {
   };
 
   const resetData = () => {
-    if (!window.confirm('Tüm veriler sıfırlanacak. Emin misiniz?')) return;
-    // Clear all persisted stores and reload with mock data
-    localStorage.removeItem('solo-agents');
-    localStorage.removeItem('solo-tasks');
-    localStorage.removeItem('solo-leads');
-    localStorage.removeItem('solo-decisions');
-    localStorage.removeItem('solo-knowledge');
-    localStorage.removeItem('solo-notifs');
-    // Reset in memory
-    AGENTS.forEach(() => {});
+    if (!window.confirm('Tüm veriler silinecek. Emin misiniz?\n\nBu işlem geri alınamaz — tüm ajanlar, görevler, leadler ve kararlar silinir.')) return;
     agentStore.agents.forEach((a) => agentStore.deleteAgent(a.id));
-    AGENTS.forEach((a) => agentStore.addAgent(a));
     taskStore.tasks.forEach((t) => taskStore.deleteTask(t.id));
-    TASKS.forEach((t) => taskStore.addTask(t));
     leadStore.leads.forEach((l) => leadStore.deleteLead(l.id));
-    LEADS.forEach((l) => leadStore.addLead(l));
     decisionStore.decisions.forEach((d) => decisionStore.deleteDecision(d.id));
-    DECISIONS.forEach((d) => decisionStore.addDecision(d));
     knowledgeStore.items.forEach((i) => knowledgeStore.deleteItem(i.id));
-    KNOWLEDGE.forEach((i) => knowledgeStore.addItem(i));
-    alert('Veriler sıfırlandı!');
+    alert('Tüm veriler silindi.');
   };
 
   return (

@@ -30,6 +30,7 @@ export interface Company {
   revenue_target: number; team_size_target: number;
   autonomy_limit: string; spend_limit: number;
   default_model: string; require_approval: boolean;
+  setup_complete: boolean;
 }
 export interface Lead {
   id: string; company: string; contact_name: string;
