@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { ApiKeyBanner } from './ApiKeyBanner';
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -8,7 +9,10 @@ export function Layout({ children }: { children: ReactNode }) {
       <Sidebar />
       <TopBar />
       <main style={{ marginLeft: '240px', marginTop: '56px', padding: '32px' }}>
-        <div style={{ maxWidth: '1280px' }}>{children}</div>
+        <div style={{ maxWidth: '1280px' }}>
+          <ApiKeyBanner />
+          {children}
+        </div>
       </main>
     </div>
   );

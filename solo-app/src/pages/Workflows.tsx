@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, GripVertical, Edit2, Trash2, X, CheckCircle, Clock, Eye } from 'lucide-react';
+import { Plus, GripVertical, Edit2, Trash2, X, CheckCircle, Clock, Eye, RotateCcw, Wand2 } from 'lucide-react';
 import { useTaskStore } from '../stores/index';
 import { TaskModal } from '../components/modals/TaskModal';
+import { PlannerModal } from '../components/modals/PlannerModal';
 import type { TaskStatus, Task } from '../types/index';
 
 const COLS: { status: TaskStatus; label: string; icon: string; color: string }[] = [
@@ -34,6 +35,7 @@ export function Workflows() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
   const [output, setOutput] = useState<Task | null>(null);
+  const [planner, setPlanner] = useState(false);
 
   const onDragStart = (e: React.DragEvent, id: string) => { e.dataTransfer.setData('taskId', id); setDragging(id); };
   const onDragEnd = () => { setDragging(null); setDragOver(null); };
@@ -50,6 +52,13 @@ export function Workflows() {
     setOutput(null);
   };
 
+  const requeue = (task: Task) => {
+    updateTask(task.id, {
+      status: 'queued', output: undefined, output_at: undefined,
+      progress: 0, approved: false, updated_at: new Date().toISOString(),
+    });
+  };
+
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t) => t.status === 'done').length;
   const reviewTasks = tasks.filter((t) => t.status === 'review').length;
@@ -64,9 +73,14 @@ export function Workflows() {
             {reviewTasks > 0 && <span className="ml-2 bdg bdg-p">👀 {reviewTasks} inceleme bekliyor</span>}
           </p>
         </div>
-        <button onClick={() => setModal({ open: true, task: null })} className="btn-p">
-          <Plus size={16} />Görev Oluştur
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setPlanner(true)} className="btn-g" style={{ borderColor: 'var(--purple)', color: 'var(--purple)' }}>
+            <Wand2 size={16} />Hedeften Görev Üret
+          </button>
+          <button onClick={() => setModal({ open: true, task: null })} className="btn-p">
+            <Plus size={16} />Görev Oluştur
+          </button>
+        </div>
       </div>
 
       <div className="glass p-4">
@@ -166,6 +180,15 @@ export function Workflows() {
                             <div className="text-xs tgreen mt-1 flex items-center gap-1"><CheckCircle size={11} />Onaylandı · {timeAgo(t.output_at)}</div>
                           )}
 
+                          {/* Blocked — re-queue to retry */}
+                          {t.status === 'blocked' && (
+                            <button onClick={(e) => { e.stopPropagation(); requeue(t); }}
+                              className="btn-g text-xs py-1.5 px-3 mt-2 w-full justify-center flex items-center gap-1"
+                              style={{ borderColor: 'var(--cyan)', color: 'var(--cyan)' }}>
+                              <RotateCcw size={12} />Yeniden Kuyruğa Al
+                            </button>
+                          )}
+
                           <div className="flex gap-1 mt-2 pt-2 border-t" style={{ borderColor: 'var(--bd)' }}>
                             <button onClick={(e) => { e.stopPropagation(); setModal({ open: true, task: t }); }}
                               className="btn-g text-xs py-1 px-2 flex items-center gap-1">
@@ -254,6 +277,7 @@ export function Workflows() {
       )}
 
       <TaskModal open={modal.open} task={modal.task} onClose={() => setModal({ open: false })} />
+      <PlannerModal open={planner} onClose={() => setPlanner(false)} />
     </div>
   );
 }

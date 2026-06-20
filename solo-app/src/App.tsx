@@ -14,7 +14,7 @@ import { AgentClub } from './pages/AgentClub';
 import { Settings } from './pages/Settings';
 import { useAutoEngine } from './hooks/useAutoEngine';
 import { useCompanyStore, useAgentStore } from './stores/index';
-import { Building2, Rocket, Sparkles } from 'lucide-react';
+import { Building2, Rocket, Sparkles, KeyRound } from 'lucide-react';
 import { buildAutoAgents } from './pages/Agents';
 
 function SetupModal() {
@@ -22,6 +22,7 @@ function SetupModal() {
   const addAgent = useAgentStore((s) => s.addAgent);
   const [name, setName] = useState('');
   const [tagline, setTagline] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [autoTeam, setAutoTeam] = useState(true);
   const [error, setError] = useState('');
 
@@ -32,7 +33,12 @@ function SetupModal() {
     if (autoTeam) {
       buildAutoAgents().forEach((a) => addAgent({ ...a, id: Math.random().toString(36).slice(2) }));
     }
-    updateCompany({ name: name.trim(), tagline: tagline.trim(), setup_complete: true });
+    updateCompany({
+      name: name.trim(),
+      tagline: tagline.trim(),
+      anthropic_api_key: apiKey.trim(),
+      setup_complete: true,
+    });
   };
 
   return (
@@ -66,6 +72,23 @@ function SetupModal() {
               placeholder="örn: AI ile büyüyoruz"
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             />
+          </div>
+
+          <div className="form-field">
+            <label className="form-label flex items-center gap-1.5">
+              <KeyRound size={12} />Anthropic API Key <span className="tm">(opsiyonel — sonra da girebilirsin)</span>
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="inp"
+              placeholder="sk-ant-api03-..."
+            />
+            <p className="text-xs tm mt-1">
+              Girersen ajanların görevleri <strong>gerçekten</strong> yapar. Boş bırakırsan demo modda çalışır.{' '}
+              <a href="https://console.anthropic.com" target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>Key al →</a>
+            </p>
           </div>
 
           <label className="flex items-start gap-3 cursor-pointer p-4 rounded-xl"

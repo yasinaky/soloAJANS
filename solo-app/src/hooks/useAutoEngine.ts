@@ -96,6 +96,24 @@ export function useAutoEngine() {
       const agentMap = Object.fromEntries(agentsRef.current.map((a) => [a.id, a]));
       const apiKey = companyRef.current.anthropic_api_key?.trim();
 
+      // Auto-assign an agent to queued tasks that have none
+      const unassigned = current.filter((t) => t.status === 'queued' && !t.agent_id);
+      unassigned.forEach((t) => {
+        const sameDept = agentsRef.current.filter(
+          (a) => a.department === t.department && a.status !== 'paused' && a.status !== 'error'
+        );
+        const pool = sameDept.length
+          ? sameDept
+          : agentsRef.current.filter((a) => a.status !== 'paused' && a.status !== 'error');
+        if (!pool.length) return;
+        // pick the least busy agent (lowest queue length, then highest level)
+        const agent = pool.slice().sort(
+          (a, b) => (a.queue_length || 0) - (b.queue_length || 0) || (b.level || 0) - (a.level || 0)
+        )[0];
+        updateTask(t.id, { agent_id: agent.id, agent_name: agent.name, updated_at: new Date().toISOString() });
+        addNotif({ title: '🤝 Görev Atandı', message: `${t.title} → ${agent.name}`, type: 'info' });
+      });
+
       // Pick up queued tasks → running
       const queued = current.filter(
         (t) => t.status === 'queued' && t.agent_id && !t.output && !inFlight.current.has(t.id)
