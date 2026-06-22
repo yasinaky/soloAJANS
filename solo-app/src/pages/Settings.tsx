@@ -177,6 +177,39 @@ export function Settings() {
         </div>
       </div>
 
+      {/* Versiyon Bilgisi */}
+      <div className="glass p-6">
+        <h2 className="text-lg font-semibold tp mb-4 flex items-center gap-2">
+          <span style={{ fontSize: 18 }}>📦</span>Uygulama Versiyonu
+        </h2>
+        <div className="flex items-center justify-between p-4 rounded-lg" style={{ background: 'var(--bg-s)', border: '1px solid var(--bd)' }}>
+          <div>
+            <div className="font-mono font-bold tp text-xl">v{__APP_VERSION__}</div>
+            <div className="text-xs tm mt-1">Solo AI Company OS — Tek kurucu için AI şirket işletim sistemi</div>
+          </div>
+          <div className="text-right text-xs ts space-y-0.5">
+            <div>✅ Hedeften görev üretme</div>
+            <div>✅ AI karar sentezi</div>
+            <div>✅ God Mode</div>
+            <div>✅ Gerçek Claude API</div>
+          </div>
+        </div>
+        <div className="mt-3 space-y-1">
+          {[
+            { v: 'v1.0.0', d: 'Bugün', n: 'AI karar sentezi, ek talep akışı, çıktı genişletme' },
+            { v: 'v0.9.0', d: '22 Haz', n: 'Hedeften görev üret, blocked yeniden kuyruğa al, otomatik ajan atama' },
+            { v: 'v0.8.0', d: '21 Haz', n: 'God Mode, gerçek Claude API entegrasyonu, Knowledge Hub, Kararlar' },
+            { v: 'v0.7.0', d: '20 Haz', n: 'Sıfır mock data, setup modal, auto ekip oluşturma' },
+          ].map((c) => (
+            <div key={c.v} className="flex items-start gap-3 text-xs py-2 border-b last:border-0" style={{ borderColor: 'var(--bd)' }}>
+              <span className="font-mono font-bold tcyan flex-shrink-0 w-14">{c.v}</span>
+              <span className="tm flex-shrink-0 w-12">{c.d}</span>
+              <span className="ts">{c.n}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Danger Zone */}
       <div className="glass p-6" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
         <h2 className="text-lg font-semibold tred mb-4 flex items-center gap-2"><Trash2 size={18} />Tehlikeli Alan</h2>

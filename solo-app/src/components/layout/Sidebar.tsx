@@ -45,10 +45,14 @@ export function Sidebar() {
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t" style={{ borderColor: 'var(--bd)' }}>
         <div className="flex items-center justify-between text-xs mb-1">
           <span className="ts">Aktif Ajanlar</span>
-          <span className="font-bold tcyan">{active}/12</span>
+          <span className="font-bold tcyan">{active}/{agents.length || 0}</span>
         </div>
-        <div className="h-1.5 rounded-full" style={{ background: 'var(--bg-c)' }}>
-          <div className="h-full rounded-full" style={{ width: `${(active/12)*100}%`, background: 'linear-gradient(135deg, var(--cyan), var(--purple))' }} />
+        <div className="h-1.5 rounded-full mb-3" style={{ background: 'var(--bg-c)' }}>
+          <div className="h-full rounded-full" style={{ width: `${agents.length ? (active/agents.length)*100 : 0}%`, background: 'linear-gradient(135deg, var(--cyan), var(--purple))' }} />
+        </div>
+        <div className="flex items-center justify-between" style={{ opacity: 0.45 }}>
+          <span className="text-xs ts">Solo OS</span>
+          <span className="text-xs ts font-mono">v{__APP_VERSION__}</span>
         </div>
       </div>
     </div>
