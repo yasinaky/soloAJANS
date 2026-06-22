@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { useTaskStore, useAgentStore, useNotifStore, useCompanyStore } from '../stores/index';
-import type { Task, Agent } from '../types';
+import { useTaskStore, useAgentStore, useNotifStore, useCompanyStore, useDecisionStore } from '../stores/index';
+import type { Task, Agent, ProposedDecision } from '../types';
 
 // --- Fallback templates (used when no API key) ---
 const FALLBACK: Record<string, string[]> = {
@@ -52,6 +52,60 @@ Bu görevi GERÇEKTEN tamamla. Çıktın şunları içermeli:
 Türkçe yanıt ver. Emoji kullanabilirsin. ${agent.godmode ? 'God Mode aktif — kapsamlı ve çok detaylı olsun.' : 'Özlü ve net olsun.'}`;
 }
 
+function templateSynthesis(tasks: Task[], _tag: string): Omit<ProposedDecision,'id'|'source_task_ids'|'created_at'> {
+  const titles = tasks.map((t) => t.title).join(', ');
+  return {
+    title: `${tasks[0].title.slice(0, 50)} — Karar`,
+    decision: `${tasks.length} görev başarıyla tamamlandı. Çıktılar değerlendirildi: ${titles}. Bu çıktılar doğrultusunda belirlenen strateji hayata geçirilmelidir.`,
+    rationale: `Tamamlanan görev çıktıları sentezlendi. Görevler: ${titles}.`,
+    impact: tasks.some((t) => t.priority === 'critical' || t.priority === 'high') ? 'high' : 'medium',
+    tags: [...new Set(tasks.flatMap((t) => t.tags))].filter(Boolean).slice(0, 5),
+  };
+}
+
+async function callClaudeSynthesis(tasks: Task[], apiKey: string, model: string): Promise<Omit<ProposedDecision,'id'|'source_task_ids'|'created_at'>> {
+  const taskSummaries = tasks.map((t, i) =>
+    `GÖREV ${i+1}: ${t.title}\nAJAN: ${t.agent_name||'Bilinmiyor'}\nÇIKTI:\n${(t.output||'').slice(0, 800)}`
+  ).join('\n\n---\n\n');
+
+  const prompt = `Sen bir AI şirketinin strateji analisti olarak aşağıdaki ${tasks.length} görev çıktısını analiz ediyorsun.
+
+${taskSummaries}
+
+Bu görev çıktılarını sentezleyerek SOMUT bir stratejik karar öner.
+
+SADECE aşağıdaki JSON formatında yanıt ver (başka hiçbir şey yazma):
+{"title":"kısa karar başlığı","decision":"ne yapılmasına karar verildi - spesifik ve uygulanabilir","rationale":"neden bu karar - görev çıktılarına dayalı gerekçe","impact":"low|medium|high|critical","tags":["etiket1","etiket2"]}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: model?.startsWith('claude-') ? model : 'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  const data = await res.json();
+  const text: string = data.content[0].text;
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Geçersiz yanıt');
+  const parsed = JSON.parse(match[0]);
+  return {
+    title: String(parsed.title || 'Sentezlenmiş Karar').slice(0, 120),
+    decision: String(parsed.decision || ''),
+    rationale: String(parsed.rationale || ''),
+    impact: (['low','medium','high','critical'].includes(parsed.impact) ? parsed.impact : 'medium') as ProposedDecision['impact'],
+    tags: Array.isArray(parsed.tags) ? parsed.tags.map(String).slice(0, 5) : [],
+  };
+}
+
 async function callClaude(task: Task, agent: Agent, apiKey: string): Promise<string> {
   const model = agent.model?.startsWith('claude-') ? agent.model : 'claude-sonnet-4-6';
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -80,15 +134,21 @@ export function useAutoEngine() {
   const agents = useAgentStore((s) => s.agents);
   const addXP = useAgentStore((s) => s.addXP);
   const company = useCompanyStore((s) => s.company);
+  const proposedDecisions = useDecisionStore((s) => s.proposedDecisions);
+  const addProposed = useDecisionStore((s) => s.addProposed);
 
   const tasksRef = useRef(tasks);
   const agentsRef = useRef(agents);
   const companyRef = useRef(company);
+  const proposedRef = useRef(proposedDecisions);
   const inFlight = useRef<Set<string>>(new Set());
+  const synthDone = useRef<Set<string>>(new Set());
+  const synthFlight = useRef<Set<string>>(new Set());
 
   tasksRef.current = tasks;
   agentsRef.current = agents;
   companyRef.current = company;
+  proposedRef.current = proposedDecisions;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -190,8 +250,57 @@ export function useAutoEngine() {
           }
         });
       }
+      // ── Sentez: 2+ tamamlanan görevden otomatik karar öner ──
+      const alreadyInProposed = new Set(proposedRef.current.flatMap((p) => p.source_task_ids));
+      const doneTasks = current.filter((t) => t.status === 'done' && t.output && !alreadyInProposed.has(t.id));
+
+      if (doneTasks.length >= 2) {
+        // Etiket bazlı gruplama
+        const tagMap = new Map<string, Task[]>();
+        doneTasks.forEach((t) => {
+          const tag = t.tags[0] || '__general__';
+          if (!tagMap.has(tag)) tagMap.set(tag, []);
+          tagMap.get(tag)!.push(t);
+        });
+
+        tagMap.forEach((group, _tag) => {
+          if (group.length < 2) return;
+          const key = group.map((t) => t.id).sort().join('|');
+          if (synthDone.current.has(key) || synthFlight.current.has(key)) return;
+          synthFlight.current.add(key);
+
+          const runSynth = async () => {
+            try {
+              const result = apiKey
+                ? await callClaudeSynthesis(group, apiKey, companyRef.current.default_model)
+                : templateSynthesis(group, _tag);
+              addProposed({
+                ...result,
+                id: Math.random().toString(36).slice(2),
+                source_task_ids: group.map((t) => t.id),
+                created_at: new Date().toISOString(),
+                tags: result.tags.length ? result.tags : [_tag].filter((t) => t !== '__general__'),
+              });
+              addNotif({
+                title: '🧠 Karar Önerisi Hazır',
+                message: `${group.length} görev çıktısı sentezlendi — onayın bekleniyor`,
+                type: 'success',
+              });
+              synthDone.current.add(key);
+            } catch {
+              const fallback = templateSynthesis(group, _tag);
+              addProposed({ ...fallback, id: Math.random().toString(36).slice(2), source_task_ids: group.map((t) => t.id), created_at: new Date().toISOString() });
+              synthDone.current.add(key);
+            } finally {
+              synthFlight.current.delete(key);
+            }
+          };
+          runSynth();
+        });
+      }
+
     }, 3500);
 
     return () => clearInterval(interval);
-  }, [updateTask, addNotif, addXP]);
+  }, [updateTask, addNotif, addXP, addProposed]);
 }

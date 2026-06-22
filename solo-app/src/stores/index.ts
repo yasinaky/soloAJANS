@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Agent,AgentStatus,Task,TaskStatus,Lead,LeadStatus,DecisionLog,KnowledgeItem,Notification,Company } from '../types';
+import type { Agent,AgentStatus,Task,TaskStatus,Lead,LeadStatus,DecisionLog,ProposedDecision,KnowledgeItem,Notification,Company } from '../types';
 
 // AGENT STORE
 interface AgentStore {
@@ -74,19 +74,30 @@ export const useLeadStore = create<LeadStore>()(
 // DECISION STORE
 interface DecisionStore {
   decisions: DecisionLog[];
+  proposedDecisions: ProposedDecision[];
   addDecision: (d: DecisionLog) => void;
   updateDecision: (id: string, u: Partial<DecisionLog>) => void;
   deleteDecision: (id: string) => void;
+  addProposed: (p: ProposedDecision) => void;
+  approveProposed: (id: string, decision: DecisionLog) => void;
+  removeProposed: (id: string) => void;
 }
 export const useDecisionStore = create<DecisionStore>()(
   persist(
     (set) => ({
       decisions: [],
+      proposedDecisions: [],
       addDecision: (d) => set((s) => ({ decisions: [...s.decisions, d] })),
       updateDecision: (id, u) => set((s) => ({ decisions: s.decisions.map((d) => d.id===id ? {...d,...u} : d) })),
       deleteDecision: (id) => set((s) => ({ decisions: s.decisions.filter((d) => d.id!==id) })),
+      addProposed: (p) => set((s) => ({ proposedDecisions: [...s.proposedDecisions, p] })),
+      approveProposed: (id, decision) => set((s) => ({
+        decisions: [...s.decisions, decision],
+        proposedDecisions: s.proposedDecisions.filter((p) => p.id !== id),
+      })),
+      removeProposed: (id) => set((s) => ({ proposedDecisions: s.proposedDecisions.filter((p) => p.id !== id) })),
     }),
-    { name: 'solo-decisions', version: 2 }
+    { name: 'solo-decisions', version: 3 }
   )
 );
 

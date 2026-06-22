@@ -50,6 +50,17 @@ export interface KPIRecord {
   unit: string; department: Department; date: string;
   trend: 'up'|'down'|'stable'; change_percent: number;
 }
+export interface ProposedDecision {
+  id: string;
+  title: string;
+  decision: string;
+  rationale: string;
+  impact: 'low'|'medium'|'high'|'critical';
+  tags: string[];
+  source_task_ids: string[];
+  created_at: string;
+}
+
 export interface DecisionLog {
   id: string; title: string; context: string;
   decision: string; rationale: string; owner: string;

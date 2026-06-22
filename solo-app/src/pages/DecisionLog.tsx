@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Plus, User, Calendar, ChevronDown, ChevronUp, Edit2, Trash2, FileText } from 'lucide-react';
+import { Plus, User, Calendar, ChevronDown, ChevronUp, Edit2, Trash2, FileText, Brain, MessageSquarePlus } from 'lucide-react';
 import { useDecisionStore } from '../stores/index';
 import { DecisionModal } from '../components/modals/DecisionModal';
+import { ProposedDecisionModal } from '../components/modals/ProposedDecisionModal';
+import { FollowUpModal } from '../components/modals/FollowUpModal';
 import type { DecisionLog as DecisionLogType } from '../types/index';
 
 const IC: Record<string, string> = { low:'bdg-y', medium:'bdg-o', high:'bdg-r', critical:'bdg-r' };
@@ -11,13 +13,17 @@ const SI: Record<string, string> = { active:'🟢', pending:'⏳', implemented:'
 
 export function DecisionLog() {
   const decisions = useDecisionStore((s) => s.decisions);
+  const proposedDecisions = useDecisionStore((s) => s.proposedDecisions);
   const deleteDecision = useDecisionStore((s) => s.deleteDecision);
+  const removeProposed = useDecisionStore((s) => s.removeProposed);
 
   const [impact, setImpact] = useState('');
   const [status, setStatus] = useState('');
   const [modal, setModal] = useState<{ open: boolean; decision?: DecisionLogType | null }>({ open: false });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [proposalView, setProposalView] = useState<string | null>(null);
+  const [followUp, setFollowUp] = useState<{ open: boolean; context: string }>({ open: false, context: '' });
 
   const filtered = decisions.filter((d) =>
     (!impact || d.impact === impact) && (!status || d.status === status)
@@ -30,6 +36,8 @@ export function DecisionLog() {
     pending: decisions.filter((d) => d.status === 'pending').length,
   };
 
+  const activeProposal = proposedDecisions.find((p) => p.id === proposalView) || null;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -41,6 +49,45 @@ export function DecisionLog() {
           <Plus size={16} />Karar Kaydet
         </button>
       </div>
+
+      {/* Önerilen Kararlar — AI Sentez */}
+      {proposedDecisions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Brain size={16} style={{ color: 'var(--purple)' }} />
+            <span className="font-semibold tp text-sm">AI Karar Önerileri</span>
+            <span className="bdg bdg-p">{proposedDecisions.length} bekliyor</span>
+          </div>
+          {proposedDecisions.map((p) => (
+            <div key={p.id} className="glass p-4"
+              style={{ borderColor: 'rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.05)' }}>
+              <div className="flex items-start gap-3">
+                <Brain size={16} style={{ color: 'var(--purple)', flexShrink: 0, marginTop: 2 }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="font-bold tp">{p.title}</span>
+                    <span className="bdg" style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--purple)' }}>AI Önerisi</span>
+                    <span className="bdg bdg-r">{II[p.impact]} {p.impact}</span>
+                  </div>
+                  <p className="text-sm ts line-clamp-2 mb-2">{p.decision}</p>
+                  <div className="text-xs tm">
+                    {new Date(p.created_at).toLocaleString('tr-TR')} · {p.source_task_ids.length} görevden sentezlendi
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => setProposalView(p.id)}
+                    className="btn-p text-xs py-1.5 px-3">
+                    <Brain size={11} />İncele & Onayla
+                  </button>
+                  <button onClick={() => removeProposed(p.id)} className="btn-d text-xs py-1.5 px-2">
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
@@ -77,27 +124,13 @@ export function DecisionLog() {
       </div>
 
       {/* Empty State */}
-      {decisions.length === 0 && (
+      {decisions.length === 0 && proposedDecisions.length === 0 && (
         <div className="glass p-12 text-center">
           <FileText size={48} className="mx-auto mb-4 tm" />
           <h3 className="text-xl font-bold tp mb-2">Henüz karar yok</h3>
           <p className="ts text-sm mb-6 max-w-md mx-auto">
-            Şirkette verdiğin önemli kararları buraya kaydet. Neden bu karar verildi,
-            ne oldu, ne öğrenildi — gelecekte referans olur.
+            Görevler tamamlandıkça AI ekip otomatik karar önerir. Ya da kendin kaydet.
           </p>
-          <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto mb-6 text-left">
-            {[
-              { icon: '🎯', title: 'Strateji', desc: 'Yön ve hedef kararları' },
-              { icon: '💰', title: 'Yatırım', desc: 'Harcama ve kaynak kararları' },
-              { icon: '🤝', title: 'Ortaklık', desc: 'İş birliği ve işe alım' },
-            ].map((e) => (
-              <div key={e.title} className="glass p-3 text-center">
-                <div className="text-2xl mb-1">{e.icon}</div>
-                <div className="font-semibold tp text-sm">{e.title}</div>
-                <div className="text-xs tm">{e.desc}</div>
-              </div>
-            ))}
-          </div>
           <button onClick={() => setModal({ open: true, decision: null })} className="btn-p">
             <Plus size={16} />İlk Kararı Kaydet
           </button>
@@ -180,6 +213,13 @@ export function DecisionLog() {
                         </button>
                       </div>
                     )}
+                    {/* Ek talep butonu */}
+                    <button
+                      onClick={() => setFollowUp({ open: true, context: d.title })}
+                      className="btn-g text-xs w-full justify-center"
+                      style={{ borderColor: 'var(--cyan)', color: 'var(--cyan)' }}>
+                      <MessageSquarePlus size={11} />Bu Karardan Ek Talep Oluştur
+                    </button>
                   </div>
                 </div>
               </div>
@@ -206,6 +246,19 @@ export function DecisionLog() {
       )}
 
       <DecisionModal open={modal.open} decision={modal.decision} onClose={() => setModal({ open: false })} />
+
+      <ProposedDecisionModal
+        proposal={activeProposal}
+        onClose={() => setProposalView(null)}
+        onFollowUp={(ctx) => setFollowUp({ open: true, context: ctx })}
+      />
+
+      <FollowUpModal
+        open={followUp.open}
+        context={followUp.context}
+        contextType="decision"
+        onClose={() => setFollowUp({ open: false, context: '' })}
+      />
     </div>
   );
 }

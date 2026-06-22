@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Plus, GripVertical, Edit2, Trash2, X, CheckCircle, Clock, Eye, RotateCcw, Wand2 } from 'lucide-react';
-import { useTaskStore } from '../stores/index';
+import { Link } from 'react-router-dom';
+import { Plus, GripVertical, Edit2, Trash2, X, CheckCircle, Clock, Eye, RotateCcw, Wand2, Brain, MessageSquarePlus } from 'lucide-react';
+import { useTaskStore, useDecisionStore } from '../stores/index';
 import { TaskModal } from '../components/modals/TaskModal';
 import { PlannerModal } from '../components/modals/PlannerModal';
-import type { TaskStatus, Task } from '../types/index';
+import { FollowUpModal } from '../components/modals/FollowUpModal';
+import { ProposedDecisionModal } from '../components/modals/ProposedDecisionModal';
+import type { TaskStatus, Task, Department } from '../types/index';
 
 const COLS: { status: TaskStatus; label: string; icon: string; color: string }[] = [
   { status:'backlog',  label:'Backlog',      icon:'📋', color:'var(--ts)' },
@@ -29,6 +32,7 @@ export function Workflows() {
   const moveTask = useTaskStore((s) => s.moveTask);
   const deleteTask = useTaskStore((s) => s.deleteTask);
   const updateTask = useTaskStore((s) => s.updateTask);
+  const proposedDecisions = useDecisionStore((s) => s.proposedDecisions);
 
   const [modal, setModal] = useState<{ open: boolean; task?: Task | null }>({ open: false });
   const [dragOver, setDragOver] = useState<TaskStatus | null>(null);
@@ -36,6 +40,8 @@ export function Workflows() {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [output, setOutput] = useState<Task | null>(null);
   const [planner, setPlanner] = useState(false);
+  const [followUp, setFollowUp] = useState<{ open: boolean; context: string; dept?: Department }>({ open: false, context: '' });
+  const [proposalView, setProposalView] = useState<string | null>(null);
 
   const onDragStart = (e: React.DragEvent, id: string) => { e.dataTransfer.setData('taskId', id); setDragging(id); };
   const onDragEnd = () => { setDragging(null); setDragOver(null); };
@@ -62,6 +68,7 @@ export function Workflows() {
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t) => t.status === 'done').length;
   const reviewTasks = tasks.filter((t) => t.status === 'review').length;
+  const activeProposal = proposedDecisions.find((p) => p.id === proposalView) || null;
 
   return (
     <div className="space-y-6">
@@ -82,6 +89,27 @@ export function Workflows() {
           </button>
         </div>
       </div>
+
+      {/* Önerilen kararlar bandı */}
+      {proposedDecisions.length > 0 && (
+        <div className="glass p-4 flex items-center gap-3 flex-wrap"
+          style={{ borderColor: 'rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.06)' }}>
+          <Brain size={18} style={{ color: 'var(--purple)' }} />
+          <div className="flex-1">
+            <span className="font-semibold tp">{proposedDecisions.length} AI karar önerisi</span>
+            <span className="ts text-sm ml-2">tamamlanan görevlerin çıktısından sentezlendi — onayın bekleniyor</span>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {proposedDecisions.map((p) => (
+              <button key={p.id} onClick={() => setProposalView(p.id)}
+                className="btn-g text-xs py-1.5 px-3" style={{ borderColor: 'var(--purple)', color: 'var(--purple)' }}>
+                <Brain size={11} />{p.title.slice(0, 35)}{p.title.length > 35 ? '…' : ''}
+              </button>
+            ))}
+            <Link to="/decisions" className="btn-g text-xs py-1.5 px-3">Tüm Kararlar →</Link>
+          </div>
+        </div>
+      )}
 
       <div className="glass p-4">
         <div className="flex items-center justify-between mb-2">
@@ -242,20 +270,36 @@ export function Workflows() {
             </div>
 
             {output.status === 'done' ? (
-              <div className="flex gap-3">
-                <div className="flex items-center gap-2 text-sm tgreen flex-1">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm tgreen">
                   <CheckCircle size={15} />Onaylandı — {timeAgo(output.output_at)}
                 </div>
-                <button onClick={() => setOutput(null)} className="btn-g">Kapat</button>
+                <div className="flex gap-3">
+                  <button onClick={() => setOutput(null)} className="btn-g flex-1 justify-center">Kapat</button>
+                  <button onClick={() => {
+                    setOutput(null);
+                    setFollowUp({ open: true, context: output.title, dept: output.department as Department });
+                  }} className="btn-g flex-1 justify-center" style={{ borderColor: 'var(--cyan)', color: 'var(--cyan)' }}>
+                    <MessageSquarePlus size={14} />Ek Talep / Düzeltme
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="flex gap-3">
-                <button onClick={() => setOutput(null)} className="btn-g flex-1 justify-center">Kapat</button>
-                <button onClick={() => { moveTask(output.id, 'blocked'); setOutput(null); }} className="btn-d flex-1 justify-center">
-                  🚫 Reddet
-                </button>
-                <button onClick={() => approve(output)} className="btn-p flex-1 justify-center">
-                  <CheckCircle size={16} />Onayla & Tamamla
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <button onClick={() => setOutput(null)} className="btn-g flex-1 justify-center">Kapat</button>
+                  <button onClick={() => { moveTask(output.id, 'blocked'); setOutput(null); }} className="btn-d flex-1 justify-center">
+                    🚫 Reddet
+                  </button>
+                  <button onClick={() => approve(output)} className="btn-p flex-1 justify-center">
+                    <CheckCircle size={16} />Onayla & Tamamla
+                  </button>
+                </div>
+                <button onClick={() => {
+                  setOutput(null);
+                  setFollowUp({ open: true, context: output.title, dept: output.department as Department });
+                }} className="btn-g w-full justify-center" style={{ borderColor: 'var(--cyan)', color: 'var(--cyan)' }}>
+                  <MessageSquarePlus size={14} />Ek Talep / Düzeltme Ekle
                 </button>
               </div>
             )}
@@ -278,6 +322,18 @@ export function Workflows() {
 
       <TaskModal open={modal.open} task={modal.task} onClose={() => setModal({ open: false })} />
       <PlannerModal open={planner} onClose={() => setPlanner(false)} />
+      <FollowUpModal
+        open={followUp.open}
+        context={followUp.context}
+        contextType="task"
+        defaultDept={followUp.dept}
+        onClose={() => setFollowUp({ open: false, context: '' })}
+      />
+      <ProposedDecisionModal
+        proposal={activeProposal}
+        onClose={() => setProposalView(null)}
+        onFollowUp={(ctx) => setFollowUp({ open: true, context: ctx })}
+      />
     </div>
   );
 }
