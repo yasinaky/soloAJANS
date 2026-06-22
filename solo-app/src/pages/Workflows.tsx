@@ -249,7 +249,7 @@ export function Workflows() {
       {/* Output Review Panel */}
       {output && (
         <div className="modal-ov" onClick={() => setOutput(null)}>
-          <div className="modal-box" style={{ maxWidth: 620 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: 780, width: '90vw', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-xl font-bold tp">Görev Çıktısı</h2>
@@ -265,7 +265,7 @@ export function Workflows() {
             </div>
 
             <div className="p-4 rounded-xl mb-4 font-mono text-sm leading-relaxed whitespace-pre-wrap"
-              style={{ background: 'var(--bg-s)', border: '1px solid var(--bd)', color: 'var(--tp)', maxHeight: 380, overflowY: 'auto' }}>
+              style={{ background: 'var(--bg-s)', border: '1px solid var(--bd)', color: 'var(--tp)' }}>
               {output.output}
             </div>
 
