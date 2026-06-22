@@ -140,10 +140,12 @@ export const useCompanyStore = create<CompanyStore>()(
         require_approval: true,
         setup_complete: false,
         anthropic_api_key: '',
+        supabase_url: '',
+        supabase_anon_key: '',
       },
       updateCompany: (u) => set((s) => ({ company: { ...s.company, ...u } })),
     }),
-    { name: 'solo-company', version: 2 }
+    { name: 'solo-company', version: 3 }
   )
 );
 

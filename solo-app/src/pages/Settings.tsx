@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Moon, Sun, Bell, Shield, Zap, Building2, Trash2, Save, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Moon, Sun, Bell, Shield, Zap, Building2, Trash2, Save, Eye, EyeOff, KeyRound, Database, CheckCircle2, Circle } from 'lucide-react';
 import { useThemeStore, useCompanyStore, useAgentStore, useTaskStore, useLeadStore, useDecisionStore, useKnowledgeStore } from '../stores/index';
+import { isSupabaseReady } from '../lib/supabase';
 
 export function Settings() {
   const { theme, toggle } = useThemeStore();
@@ -8,6 +9,8 @@ export function Settings() {
   const [form, setForm] = useState({ ...company });
   const [saved, setSaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const [showSbKey, setShowSbKey] = useState(false);
+  const sbReady = isSupabaseReady(form.supabase_url, form.supabase_anon_key);
 
   const agentStore = useAgentStore();
   const taskStore = useTaskStore();
@@ -173,6 +176,74 @@ export function Settings() {
               Yoksa demo şablonlar kullanılır.
               Key'i <a href="https://console.anthropic.com" target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>console.anthropic.com</a>'dan alabilirsin.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Veritabanı Bağlantısı */}
+      <div className="glass p-6">
+        <h2 className="text-lg font-semibold tp mb-1 flex items-center gap-2"><Database size={18} />Veritabanı Bağlantısı</h2>
+        <p className="text-xs tm mb-4">
+          Supabase bağlarsan veriler hesabına kaydolur, cihazlar arası senkronize kalır ve çoklu kullanıcı desteği aktif olur.
+          <a href="https://supabase.com" target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)', marginLeft: 4 }}>supabase.com'da ücretsiz hesap aç →</a>
+        </p>
+
+        {/* Bağlantı durumu */}
+        <div className="mb-4 p-3 rounded-lg flex items-center gap-2 text-sm"
+          style={{ background: sbReady ? 'rgba(16,185,129,0.08)' : 'var(--bg-s)', border: `1px solid ${sbReady ? 'rgba(16,185,129,0.3)' : 'var(--bd)'}` }}>
+          {sbReady
+            ? <><CheckCircle2 size={15} style={{ color: 'var(--green)', flexShrink: 0 }} /><span className="tp">Supabase bağlı — veriler bulutta senkronize ediliyor</span></>
+            : <><Circle size={15} style={{ color: 'var(--yellow)', flexShrink: 0 }} /><span className="ts">Bağlı değil — veriler yalnızca bu cihazda saklanıyor (yerel mod)</span></>
+          }
+        </div>
+
+        <div className="space-y-4">
+          <div className="form-field">
+            <label className="form-label">Supabase Project URL</label>
+            <input
+              value={form.supabase_url || ''}
+              onChange={(e) => set('supabase_url', e.target.value)}
+              className="inp"
+              placeholder="https://xxxxxxxxxxxx.supabase.co"
+            />
+          </div>
+          <div className="form-field">
+            <label className="form-label">Supabase Anon Key</label>
+            <div className="flex gap-2">
+              <input
+                type={showSbKey ? 'text' : 'password'}
+                value={form.supabase_anon_key || ''}
+                onChange={(e) => set('supabase_anon_key', e.target.value)}
+                className="inp flex-1"
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              />
+              <button type="button" onClick={() => setShowSbKey(!showSbKey)} className="btn-g px-3">
+                {showSbKey ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Kurulum adımları */}
+          <div className="p-4 rounded-lg space-y-2 text-xs" style={{ background: 'var(--bg-s)', border: '1px solid var(--bd)' }}>
+            <div className="font-semibold tp mb-2">Kurulum adımları:</div>
+            <div className="ts">1️⃣ <a href="https://supabase.com" target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>supabase.com</a>'a git → Yeni proje oluştur</div>
+            <div className="ts">2️⃣ Sol menü → <strong className="tp">SQL Editor</strong> → Aşağıdaki SQL'i çalıştır:</div>
+            <div className="font-mono text-xs p-3 rounded overflow-x-auto" style={{ background: 'rgba(0,0,0,0.3)', color: 'var(--cyan)', whiteSpace: 'pre' }}>{`CREATE TABLE IF NOT EXISTS user_data (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL UNIQUE,
+  company jsonb NOT NULL DEFAULT '{}',
+  agents jsonb NOT NULL DEFAULT '[]',
+  tasks jsonb NOT NULL DEFAULT '[]',
+  leads jsonb NOT NULL DEFAULT '[]',
+  decisions jsonb NOT NULL DEFAULT '{}',
+  knowledge jsonb NOT NULL DEFAULT '[]',
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE user_data ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own data" ON user_data
+  FOR ALL USING (auth.uid() = user_id);`}</div>
+            <div className="ts">3️⃣ <strong className="tp">Settings → API</strong> → Project URL ve anon key'i kopyala → buraya yapıştır</div>
+            <div className="ts">4️⃣ "Değişiklikleri Kaydet" → Sayfayı yenile → Kayıt Ol / Giriş Yap</div>
           </div>
         </div>
       </div>

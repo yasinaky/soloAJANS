@@ -31,6 +31,7 @@ export interface Company {
   autonomy_limit: string; spend_limit: number;
   default_model: string; require_approval: boolean;
   setup_complete: boolean; anthropic_api_key: string;
+  supabase_url: string; supabase_anon_key: string;
 }
 export interface Lead {
   id: string; company: string; contact_name: string;
