@@ -17,5 +17,10 @@ export function getSupabase(): SupabaseClient | null {
 }
 
 export function isSupabaseReady(url: string, key: string): boolean {
-  return !!(url?.startsWith('https://') && key?.length > 20);
+  return !!(url?.startsWith('https://') && key?.startsWith('eyJ') && key?.length > 100);
+}
+
+// Publishable key girilmişse kullanıcıyı uyar
+export function isPublishableKey(key: string): boolean {
+  return key?.startsWith('sb_publishable_') || key?.startsWith('sb_');
 }

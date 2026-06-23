@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Moon, Sun, Bell, Shield, Zap, Building2, Trash2, Save, Eye, EyeOff, KeyRound, Database, CheckCircle2, Circle } from 'lucide-react';
 import { useThemeStore, useCompanyStore, useAgentStore, useTaskStore, useLeadStore, useDecisionStore, useKnowledgeStore } from '../stores/index';
-import { isSupabaseReady } from '../lib/supabase';
+import { isSupabaseReady, isPublishableKey } from '../lib/supabase';
 
 export function Settings() {
   const { theme, toggle } = useThemeStore();
@@ -11,6 +11,7 @@ export function Settings() {
   const [showKey, setShowKey] = useState(false);
   const [showSbKey, setShowSbKey] = useState(false);
   const sbReady = isSupabaseReady(form.supabase_url, form.supabase_anon_key);
+  const sbKeyWrong = isPublishableKey(form.supabase_anon_key || '');
 
   const agentStore = useAgentStore();
   const taskStore = useTaskStore();
@@ -221,6 +222,16 @@ export function Settings() {
                 {showSbKey ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+            {sbKeyWrong && (
+              <div className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)' }}>
+                <span style={{ flexShrink: 0 }}>⚠️</span>
+                <div>
+                  <strong>Yanlış key formatı</strong> — "Publishable key" (<code>sb_publishable_...</code>) bu sürümde çalışmıyor.<br />
+                  Supabase Dashboard → Settings → API → <strong>"Legacy API Keys"</strong> bölümündeki <strong>anon</strong> key'i kullan (<code>eyJhbGci...</code> ile başlar).
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Kurulum adımları */}
