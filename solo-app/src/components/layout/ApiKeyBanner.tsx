@@ -21,7 +21,7 @@ export function ApiKeyBanner() {
     >
       <KeyRound size={16} style={{ color: 'var(--yellow)', flexShrink: 0 }} />
       <span className="flex-1">
-        <strong>Demo modundasın.</strong> Ajanların gerçekten çalışması için Anthropic API key ekle.
+        <strong>API key tanımlı değil.</strong> Demo/şablon çıktı üretimi kapalıdır — görevler API key girilene kadar bloklanır. Ajanların gerçek iş üretmesi için Anthropic API key ekle.
       </span>
       <Link to="/settings" className="btn-p text-xs py-1.5 px-3 flex items-center gap-1" style={{ flexShrink: 0 }}>
         API Key Ekle <ArrowRight size={12} />

@@ -267,7 +267,8 @@ CREATE POLICY "own data" ON user_data
         </div>
         <div className="mt-3 space-y-1">
           {[
-            { v: 'v1.0.0', d: 'Bugün', n: 'AI karar sentezi, ek talep akışı, çıktı genişletme' },
+            { v: 'v1.1.0', d: 'Bugün', n: 'Guardrail: görev-çıktı uyum doğrulaması, demo mod bloklandı, şablon çıktılar kaldırıldı, Supabase girişi' },
+            { v: 'v1.0.0', d: '22 Haz', n: 'AI karar sentezi, ek talep akışı, çıktı genişletme' },
             { v: 'v0.9.0', d: '22 Haz', n: 'Hedeften görev üret, blocked yeniden kuyruğa al, otomatik ajan atama' },
             { v: 'v0.8.0', d: '21 Haz', n: 'God Mode, gerçek Claude API entegrasyonu, Knowledge Hub, Kararlar' },
             { v: 'v0.7.0', d: '20 Haz', n: 'Sıfır mock data, setup modal, auto ekip oluşturma' },

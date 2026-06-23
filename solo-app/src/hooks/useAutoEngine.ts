@@ -2,33 +2,10 @@ import { useEffect, useRef } from 'react';
 import { useTaskStore, useAgentStore, useNotifStore, useCompanyStore, useDecisionStore } from '../stores/index';
 import type { Task, Agent, ProposedDecision } from '../types';
 
-// --- Fallback templates (used when no API key) ---
-const FALLBACK: Record<string, string[]> = {
-  engineering: [
-    `✅ Geliştirme tamamlandı\n\n📁 Değiştirilen dosyalar:\n• src/core/feature.ts (+89 satır)\n• tests/feature.test.ts (+45 satır)\n\n📊 Test sonuçları: 18/18 ✓\n🔒 Güvenlik taraması: Temiz\n\n→ PR incelemeye hazır`,
-    `✅ Bug fix tamamlandı\n\n🐛 Root cause tespit edildi ve çözüldü\n• Regression testi geçti ✓\n• Lint: Temiz\n\n→ Production'a alınabilir`,
-  ],
-  marketing: [
-    `✅ İçerik hazırlandı\n\n📝 Blog yazısı tamamlandı\n🎯 SEO skoru: 87/100\n📅 Yayın takvimi güncellendi\n\n→ Onaya hazır`,
-  ],
-  support: [
-    `✅ Destek talebi çözüldü\n\n📊 CSAT: 4.8/5\n⏱️ Yanıt süresi: 3.2 dk\n\n→ Müşteri bilgilendirildi`,
-  ],
-  design: [
-    `✅ Tasarım tamamlandı\n\n🎨 Assets teslim edildi\n✓ WCAG 2.1 AA uyumu\n✓ Dark/Light mode\n\n→ Dev handoff hazır`,
-  ],
-  sales: [
-    `✅ Satış görevi tamamlandı\n\n📊 Pipeline güncellendi\n📧 Outreach gönderildi\n\n→ CRM güncellendi`,
-  ],
-  analytics: [
-    `✅ Analiz tamamlandı\n\n📊 KPI raporu hazır\n🔍 İçgörüler belirlendi\n\n→ Dashboard güncellendi`,
-  ],
-};
-
-function getFallback(task: Task): string {
-  const pool = FALLBACK[task.department] || FALLBACK.engineering;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
+// Hafif/hızlı doğrulama modeli (guardrail uyum kontrolü için)
+const VALIDATION_MODEL = 'claude-haiku-4-5-20251001';
+// Uyum eşiği — bu puanın altındaki çıktılar yayına alınmaz, bloklanır
+const ALIGNMENT_THRESHOLD = 50;
 
 function buildPrompt(task: Task, agent: Agent): string {
   return `Sen "${agent.name}" adlı bir AI ajansın.
@@ -127,6 +104,54 @@ async function callClaude(task: Task, agent: Agent, apiKey: string): Promise<str
   return data.content[0].text;
 }
 
+// ── GUARDRAIL: Görev-çıktı uyum doğrulaması ──
+// Üretilen çıktının gerçekten görevde isteneni karşılayıp karşılamadığını ölçer.
+async function validateAlignment(
+  task: Task,
+  output: string,
+  apiKey: string
+): Promise<{ aligned: boolean; score: number; reason: string }> {
+  const prompt = `Aşağıda bir GÖREV ve buna karşılık üretilen ÇIKTI var. Çıktının göreve UYUMUNU değerlendir.
+
+GÖREV BAŞLIĞI: ${task.title}
+GÖREV AÇIKLAMASI: ${task.description || '(açıklama yok)'}
+
+ÜRETİLEN ÇIKTI:
+${output.slice(0, 2500)}
+
+Soru: Bu çıktı, görevde istenen şeyi gerçekten ve doğrudan ele alıyor mu? Konu dışı, alakasız, genel-geçer veya şablon bir yanıt mı?
+
+SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma:
+{"score": <0-100 arası uyum puanı>, "reason": "<tek cümlelik kısa gerekçe>"}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: VALIDATION_MODEL,
+      max_tokens: 200,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Doğrulama API ${res.status}`);
+  const data = await res.json();
+  const text: string = data.content[0].text;
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Geçersiz doğrulama yanıtı');
+  const parsed = JSON.parse(match[0]);
+  const score = Math.max(0, Math.min(100, Number(parsed.score) || 0));
+  return {
+    aligned: score >= ALIGNMENT_THRESHOLD,
+    score,
+    reason: String(parsed.reason || 'Gerekçe belirtilmedi'),
+  };
+}
+
 export function useAutoEngine() {
   const tasks = useTaskStore((s) => s.tasks);
   const updateTask = useTaskStore((s) => s.updateTask);
@@ -183,6 +208,20 @@ export function useAutoEngine() {
       queued.slice(0, pickCount).forEach((t) => {
         const agent = agentMap[t.agent_id!];
         if (!agent) return;
+
+        // ── DEMO MOD BLOKLAMA: API key yoksa sahte çıktı üretme, görevi blokla ──
+        if (!apiKey) {
+          updateTask(t.id, {
+            status: 'blocked',
+            progress: 0,
+            output: `⛔ Görev çalıştırılamadı — Anthropic API key tanımlı değil.\n\nBu uygulamada demo/şablon çıktı üretimi kapalıdır. Ajanların gerçek iş üretebilmesi için:\nAyarlar → AI Model & API Bağlantısı → geçerli bir API key gir.\n\nKey girdikten sonra bu görevi "Yeniden Kuyruğa Al" ile tekrar başlatabilirsin.`,
+            output_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          addNotif({ title: '⛔ API Key Gerekli', message: `${t.title} bloklandı — gerçek çıktı için API key gir`, type: 'warning' });
+          return;
+        }
+
         inFlight.current.add(t.id);
 
         updateTask(t.id, {
@@ -196,65 +235,60 @@ export function useAutoEngine() {
           type: agent.godmode ? 'success' : 'info',
         });
 
-        if (apiKey) {
-          // Real Claude API call
-          callClaude(t, agent, apiKey)
-            .then((text) => {
-              const output = `🤖 ${agent.name} — Gerçek AI Çıktısı\n📅 ${new Date().toLocaleString('tr-TR')}\n${'─'.repeat(40)}\n\n${text}`;
+        // Gerçek Claude API çağrısı → ardından guardrail uyum doğrulaması
+        callClaude(t, agent, apiKey)
+          .then(async (text) => {
+            // çıktı geldi, şimdi guardrail kontrolü
+            updateTask(t.id, { progress: 85, updated_at: new Date().toISOString() });
+
+            const rawOutput = `🤖 ${agent.name} — Gerçek AI Çıktısı\n📅 ${new Date().toLocaleString('tr-TR')}\n${'─'.repeat(40)}\n\n${text}`;
+
+            // ── GUARDRAIL: görev-çıktı uyumu ──
+            let aligned = true, score = 100, reason = '';
+            try {
+              const v = await validateAlignment(t, text, apiKey);
+              aligned = v.aligned; score = v.score; reason = v.reason;
+            } catch {
+              // doğrulama altyapısı çökerse gerçek işi engelleme (fail-open), ama not düş
+              aligned = true; score = -1; reason = 'doğrulama yapılamadı';
+            }
+
+            if (!aligned) {
+              const blockedOutput = `🛡️ GUARDRAIL — Görev-çıktı uyumu DÜŞÜK (${score}/100)\n⚠️ ${reason}\n\nBu çıktı göreve uygun bulunmadığı için yayına ALINMADI. Aşağıda üretilen çıktıyı inceleyebilirsin; uygunsa "Yeniden Kuyruğa Al" ile tekrar denet ya da görevi netleştir.\n${'═'.repeat(40)}\n\n${rawOutput}`;
               updateTask(t.id, {
-                progress: 100, status: 'review', output,
+                progress: 100, status: 'blocked', output: blockedOutput,
                 output_at: new Date().toISOString(), updated_at: new Date().toISOString(),
               });
-              addNotif({ title: '✅ Görev Tamamlandı', message: `${agent.name}: ${t.title} — inceleme bekliyor`, type: 'success' });
-              addXP(t.agent_id!, agent.godmode ? 2000 : 500);
-            })
-            .catch((err) => {
-              const output = `⚠️ API Hatası: ${err.message}\n\n${getFallback(t)}`;
-              updateTask(t.id, {
-                progress: 100, status: 'review', output,
-                output_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-              });
-              addNotif({ title: '⚠️ API Hatası', message: `${agent.name}: ${err.message}`, type: 'warning' });
-            })
-            .finally(() => inFlight.current.delete(t.id));
-        } else {
-          // No API key — simulate with progress ticks, then fallback output
-          // (handled by the progress advancement below; mark as "needs-completion")
-        }
-      });
+              addNotif({ title: '🛡️ Guardrail: Uyumsuz Çıktı', message: `${t.title} — uyum ${score}/100, yayına alınmadı`, type: 'warning' });
+              return;
+            }
 
-      // Advance running tasks that have NO API key (simulation mode)
-      if (!apiKey) {
-        const running = current.filter(
-          (t) => t.status === 'running' && t.agent_id && !inFlight.current.has(t.id)
-        );
-        running.forEach((t) => {
-          const agent = agentMap[t.agent_id!];
-          if (!agent) return;
-          const cur = t.progress || 0;
-          const inc = agent.godmode
-            ? Math.floor(Math.random() * 40) + 25
-            : Math.floor(Math.random() * 18) + 7;
-          const next = Math.min(100, cur + inc);
-
-          if (next >= 100) {
-            const output = `🤖 ${agent.name} tarafından tamamlandı\n📅 ${new Date().toLocaleString('tr-TR')}\n⚠️ Demo mod (API key yok — Ayarlar'dan Anthropic key gir)\n\n${getFallback(t)}`;
+            const badge = score >= 0 ? `🛡️ Guardrail: Görev-çıktı uyumu ✓ (${score}/100)` : `🛡️ Guardrail: doğrulama atlandı (geçici hata)`;
+            const output = `${rawOutput}\n\n${'─'.repeat(40)}\n${badge}`;
             updateTask(t.id, {
               progress: 100, status: 'review', output,
               output_at: new Date().toISOString(), updated_at: new Date().toISOString(),
             });
-            addNotif({ title: '✅ Görev Tamamlandı (Demo)', message: `${agent.name}: ${t.title}`, type: 'success' });
-            addXP(t.agent_id!, agent.godmode ? 1500 : 250);
-          } else {
-            updateTask(t.id, { progress: next, updated_at: new Date().toISOString() });
-          }
-        });
-      }
+            addNotif({ title: '✅ Görev Tamamlandı', message: `${agent.name}: ${t.title} — inceleme bekliyor`, type: 'success' });
+            addXP(t.agent_id!, agent.godmode ? 2000 : 500);
+          })
+          .catch((err) => {
+            updateTask(t.id, {
+              progress: 0, status: 'blocked',
+              output: `⚠️ API Hatası: ${err.message}\n\nGörev tamamlanamadı. API key'ini ve internet bağlantını kontrol et, sonra "Yeniden Kuyruğa Al" ile tekrar dene.`,
+              output_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+            });
+            addNotif({ title: '⚠️ API Hatası', message: `${agent.name}: ${err.message}`, type: 'error' });
+          })
+          .finally(() => inFlight.current.delete(t.id));
+      });
+
       // ── Sentez: 2+ tamamlanan görevden otomatik karar öner ──
       const alreadyInProposed = new Set(proposedRef.current.flatMap((p) => p.source_task_ids));
       const doneTasks = current.filter((t) => t.status === 'done' && t.output && !alreadyInProposed.has(t.id));
 
-      if (doneTasks.length >= 2) {
+      // Sentez yalnızca gerçek API key varken çalışır — demo/şablon karar üretilmez
+      if (doneTasks.length >= 2 && apiKey) {
         // Etiket bazlı gruplama
         const tagMap = new Map<string, Task[]>();
         doneTasks.forEach((t) => {
@@ -271,9 +305,7 @@ export function useAutoEngine() {
 
           const runSynth = async () => {
             try {
-              const result = apiKey
-                ? await callClaudeSynthesis(group, apiKey, companyRef.current.default_model)
-                : templateSynthesis(group, _tag);
+              const result = await callClaudeSynthesis(group, apiKey, companyRef.current.default_model);
               addProposed({
                 ...result,
                 id: Math.random().toString(36).slice(2),

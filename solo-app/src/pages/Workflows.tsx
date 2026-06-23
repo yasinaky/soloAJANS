@@ -208,13 +208,22 @@ export function Workflows() {
                             <div className="text-xs tgreen mt-1 flex items-center gap-1"><CheckCircle size={11} />Onaylandı · {timeAgo(t.output_at)}</div>
                           )}
 
-                          {/* Blocked — re-queue to retry */}
+                          {/* Blocked — neden bloklandığını gör + yeniden dene */}
                           {t.status === 'blocked' && (
-                            <button onClick={(e) => { e.stopPropagation(); requeue(t); }}
-                              className="btn-g text-xs py-1.5 px-3 mt-2 w-full justify-center flex items-center gap-1"
-                              style={{ borderColor: 'var(--cyan)', color: 'var(--cyan)' }}>
-                              <RotateCcw size={12} />Yeniden Kuyruğa Al
-                            </button>
+                            <div className="space-y-1 mt-2">
+                              {t.output && (
+                                <button onClick={(e) => { e.stopPropagation(); setOutput(t); }}
+                                  className="btn-g text-xs py-1.5 px-3 w-full justify-center flex items-center gap-1"
+                                  style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>
+                                  <Eye size={12} />Neden Bloklandı?
+                                </button>
+                              )}
+                              <button onClick={(e) => { e.stopPropagation(); requeue(t); }}
+                                className="btn-g text-xs py-1.5 px-3 w-full justify-center flex items-center gap-1"
+                                style={{ borderColor: 'var(--cyan)', color: 'var(--cyan)' }}>
+                                <RotateCcw size={12} />Yeniden Kuyruğa Al
+                              </button>
+                            </div>
                           )}
 
                           <div className="flex gap-1 mt-2 pt-2 border-t" style={{ borderColor: 'var(--bd)' }}>
@@ -283,6 +292,28 @@ export function Workflows() {
                     <MessageSquarePlus size={14} />Ek Talep / Düzeltme
                   </button>
                 </div>
+              </div>
+            ) : output.status === 'blocked' ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm tred">
+                  🚫 Bu görev bloklandı (guardrail / API hatası — yukarıdaki nedene bak)
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setOutput(null)} className="btn-g flex-1 justify-center">Kapat</button>
+                  <button onClick={() => { requeue(output); setOutput(null); }} className="btn-g flex-1 justify-center"
+                    style={{ borderColor: 'var(--cyan)', color: 'var(--cyan)' }}>
+                    <RotateCcw size={15} />Yeniden Kuyruğa Al
+                  </button>
+                  <button onClick={() => approve(output)} className="btn-p flex-1 justify-center">
+                    <CheckCircle size={16} />Yine de Onayla
+                  </button>
+                </div>
+                <button onClick={() => {
+                  setOutput(null);
+                  setFollowUp({ open: true, context: output.title, dept: output.department as Department });
+                }} className="btn-g w-full justify-center" style={{ borderColor: 'var(--cyan)', color: 'var(--cyan)' }}>
+                  <MessageSquarePlus size={14} />Ek Talep / Düzeltme Ekle
+                </button>
               </div>
             ) : (
               <div className="space-y-3">
