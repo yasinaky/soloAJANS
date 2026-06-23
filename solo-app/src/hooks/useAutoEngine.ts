@@ -1,6 +1,23 @@
 import { useEffect, useRef } from 'react';
 import { useTaskStore, useAgentStore, useNotifStore, useCompanyStore, useDecisionStore } from '../stores/index';
-import type { Task, Agent, ProposedDecision } from '../types';
+import type { Task, Agent, ProposedDecision, TaskAttachment } from '../types';
+
+// ── Multimodal content block yardımcısı ──
+type TextBlock = { type: 'text'; text: string };
+type ImageBlock = { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
+type DocumentBlock = { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } };
+type ContentBlock = TextBlock | ImageBlock | DocumentBlock;
+
+function buildContentBlocks(promptText: string, attachments?: TaskAttachment[]): ContentBlock[] | string {
+  if (!attachments?.length) return promptText;
+  const blocks: ContentBlock[] = attachments.map((att) =>
+    att.media_type === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf' as const, data: att.data } }
+      : { type: 'image', source: { type: 'base64', media_type: att.media_type, data: att.data } }
+  );
+  blocks.push({ type: 'text', text: promptText });
+  return blocks;
+}
 
 // Hafif/hızlı doğrulama modeli (guardrail uyum kontrolü için)
 const VALIDATION_MODEL = 'claude-haiku-4-5-20251001';
@@ -8,6 +25,10 @@ const VALIDATION_MODEL = 'claude-haiku-4-5-20251001';
 const ALIGNMENT_THRESHOLD = 50;
 
 function buildPrompt(task: Task, agent: Agent): string {
+  const hasAttachments = task.attachments && task.attachments.length > 0;
+  const attNote = hasAttachments
+    ? `\nEKLENEN DOSYALAR: ${task.attachments!.map((a) => a.name).join(', ')} — Bu dosyaları/görselleri/PDF'leri DİKKATLİCE incele ve analizini göreve dahil et.\n`
+    : '';
   return `Sen "${agent.name}" adlı bir AI ajansın.
 Rol: ${agent.role}
 Departman: ${agent.department}
@@ -17,12 +38,12 @@ ${agent.godmode ? 'Mod: GOD MODE — sınırsız kapasite, maksimum detay\n' : '
 ---
 GÖREV: ${task.title}
 AÇIKLAMA: ${task.description || '(ek açıklama yok)'}
-ÖNCELİK: ${task.priority}
+ÖNCELİK: ${task.priority}${attNote}
 ---
 
 Bu görevi GERÇEKTEN tamamla. Çıktın şunları içermeli:
 - Görevi tam olarak nasıl ele aldığın
-- Ürettiğin içerik, fikir, kod, analiz, plan — ne gerektiriyorsa
+${hasAttachments ? '- Eklenen dosya/görsel/PDF içeriğinin detaylı analizi\n' : ''}- Ürettiğin içerik, fikir, kod, analiz, plan — ne gerektiriyorsa
 - Somut sonuçlar ve öneriler
 - Bir sonraki adım
 
@@ -85,6 +106,7 @@ SADECE aşağıdaki JSON formatında yanıt ver (başka hiçbir şey yazma):
 
 async function callClaude(task: Task, agent: Agent, apiKey: string): Promise<string> {
   const model = agent.model?.startsWith('claude-') ? agent.model : 'claude-sonnet-4-6';
+  const content = buildContentBlocks(buildPrompt(task, agent), task.attachments);
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -95,8 +117,8 @@ async function callClaude(task: Task, agent: Agent, apiKey: string): Promise<str
     },
     body: JSON.stringify({
       model,
-      max_tokens: agent.godmode ? 4096 : 1024,
-      messages: [{ role: 'user', content: buildPrompt(task, agent) }],
+      max_tokens: agent.godmode ? 4096 : 1500,
+      messages: [{ role: 'user', content }],
     }),
   });
   if (!res.ok) throw new Error(`API ${res.status}`);
@@ -111,18 +133,22 @@ async function validateAlignment(
   output: string,
   apiKey: string
 ): Promise<{ aligned: boolean; score: number; reason: string }> {
-  const prompt = `Aşağıda bir GÖREV ve buna karşılık üretilen ÇIKTI var. Çıktının göreve UYUMUNU değerlendir.
+  const hasAtt = task.attachments && task.attachments.length > 0;
+  const prompt = `Aşağıda bir GÖREV${hasAtt ? ' (ekli dosyalar/görseller dahil)' : ''} ve buna karşılık üretilen ÇIKTI var. Çıktının göreve UYUMUNU değerlendir.
 
 GÖREV BAŞLIĞI: ${task.title}
 GÖREV AÇIKLAMASI: ${task.description || '(açıklama yok)'}
-
+${hasAtt ? `EKLİ DOSYALAR: ${task.attachments!.map((a) => a.name).join(', ')} — Çıktının bu dosyaları/görselleri/içerikleri ele alıp almadığını da değerlendir.\n` : ''}
 ÜRETİLEN ÇIKTI:
 ${output.slice(0, 2500)}
 
-Soru: Bu çıktı, görevde istenen şeyi gerçekten ve doğrudan ele alıyor mu? Konu dışı, alakasız, genel-geçer veya şablon bir yanıt mı?
+Soru: Bu çıktı, görevde istenen şeyi gerçekten ve doğrudan ele alıyor mu? ${hasAtt ? 'Ekli dosyalar/görseller analiz edildi mi?' : ''} Konu dışı, alakasız, genel-geçer veya şablon bir yanıt mı?
 
 SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma:
 {"score": <0-100 arası uyum puanı>, "reason": "<tek cümlelik kısa gerekçe>"}`;
+
+  // Guardrail da görselleri görür (içerik tutarsızlığını daha iyi yakalar)
+  const content = buildContentBlocks(prompt, task.attachments);
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -135,7 +161,7 @@ SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma:
     body: JSON.stringify({
       model: VALIDATION_MODEL,
       max_tokens: 200,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content }],
     }),
   });
   if (!res.ok) throw new Error(`Doğrulama API ${res.status}`);

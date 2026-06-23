@@ -6,6 +6,14 @@ export type DecisionStatus = 'active'|'pending'|'implemented'|'cancelled';
 export type KnowledgeCategory = 'sop'|'prompt'|'doc'|'template'|'guide';
 export type AutonomyLevel = 'low'|'medium'|'high'|'full';
 export type Priority = 'low'|'medium'|'high'|'critical';
+export type AttachmentMediaType = 'image/jpeg'|'image/png'|'image/gif'|'image/webp'|'application/pdf';
+
+export interface TaskAttachment {
+  name: string;
+  media_type: AttachmentMediaType;
+  data: string; // base64
+  size?: number;
+}
 
 export interface Agent {
   id: string; name: string; department: Department; role: string;
@@ -23,6 +31,7 @@ export interface Task {
   priority: Priority; created_at: string; updated_at: string;
   due_date?: string; tags: string[]; progress?: number;
   output?: string; output_at?: string; approved?: boolean;
+  attachments?: TaskAttachment[];
 }
 
 export interface Company {

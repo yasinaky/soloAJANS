@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, GripVertical, Edit2, Trash2, X, CheckCircle, Clock, Eye, RotateCcw, Wand2, Brain, MessageSquarePlus } from 'lucide-react';
+import { Plus, GripVertical, Edit2, Trash2, X, CheckCircle, Clock, Eye, RotateCcw, Wand2, Brain, MessageSquarePlus, Paperclip } from 'lucide-react';
 import { useTaskStore, useDecisionStore } from '../stores/index';
 import { TaskModal } from '../components/modals/TaskModal';
 import { PlannerModal } from '../components/modals/PlannerModal';
@@ -190,6 +190,27 @@ export function Workflows() {
                             </div>
                           )}
 
+                          {/* Ekler göstergesi */}
+                          {t.attachments && t.attachments.length > 0 && (
+                            <div className="flex items-center gap-1.5 mt-2">
+                              {t.attachments.slice(0, 3).map((att, i) =>
+                                att.media_type === 'application/pdf' ? (
+                                  <span key={i} className="flex items-center gap-1 text-xs tm px-1.5 py-0.5 rounded"
+                                    style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)' }}>
+                                    <Paperclip size={9} style={{ color: 'var(--cyan)' }} />PDF
+                                  </span>
+                                ) : (
+                                  <img key={i} src={`data:${att.media_type};base64,${att.data}`} alt={att.name}
+                                    className="rounded object-cover flex-shrink-0"
+                                    style={{ width: 28, height: 28, border: '1px solid var(--bd)' }} />
+                                )
+                              )}
+                              {t.attachments.length > 3 && (
+                                <span className="text-xs tm">+{t.attachments.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+
                           {/* Output available — review */}
                           {t.output && t.status === 'review' && (
                             <button onClick={(e) => { e.stopPropagation(); setOutput(t); }}
@@ -272,6 +293,34 @@ export function Workflows() {
               <span className="text-xs tm">{timeAgo(output.output_at)}</span>
               <span className={`bdg ${PC[output.priority]} ml-auto`}>{output.priority}</span>
             </div>
+
+            {/* Eklenen dosyalar / görseller */}
+            {output.attachments && output.attachments.length > 0 && (
+              <div className="mb-4">
+                <div className="text-xs tm mb-2 flex items-center gap-1">
+                  <Paperclip size={11} />Eklenen dosyalar ({output.attachments.length})
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {output.attachments.map((att, i) => (
+                    att.media_type === 'application/pdf' ? (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs ts"
+                        style={{ background: 'var(--bg-s)', border: '1px solid var(--bd)' }}>
+                        <Paperclip size={14} style={{ color: 'var(--cyan)' }} />
+                        {att.name}
+                      </div>
+                    ) : (
+                      <img key={i}
+                        src={`data:${att.media_type};base64,${att.data}`}
+                        alt={att.name}
+                        title={att.name}
+                        className="rounded-lg object-cover"
+                        style={{ maxHeight: 120, maxWidth: 200, border: '1px solid var(--bd)' }}
+                      />
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="p-4 rounded-xl mb-4 font-mono text-sm leading-relaxed whitespace-pre-wrap"
               style={{ background: 'var(--bg-s)', border: '1px solid var(--bd)', color: 'var(--tp)' }}>
