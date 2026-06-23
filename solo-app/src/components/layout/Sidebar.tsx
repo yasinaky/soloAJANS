@@ -4,14 +4,14 @@ import { useAgentStore, useCompanyStore } from '../../stores/index';
 
 const NAV = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-  { icon: Building2, label: 'Departmanlar', href: '/departments', count: 6 },
-  { icon: Users, label: 'Ajanlar', href: '/agents', count: 12 },
-  { icon: Grid3X3, label: 'Workflows', href: '/workflows', count: 6 },
-  { icon: Target, label: 'Leads', href: '/leads', count: 5 },
-  { icon: BookOpen, label: 'Bilgi Merkezi', href: '/knowledge', count: 4 },
+  { icon: Building2, label: 'Departmanlar', href: '/departments' },
+  { icon: Users, label: 'Ajanlar', href: '/agents' },
+  { icon: Grid3X3, label: 'Workflows', href: '/workflows' },
+  { icon: Target, label: 'Leads', href: '/leads' },
+  { icon: BookOpen, label: 'Bilgi Merkezi', href: '/knowledge' },
   { icon: BarChart3, label: 'Analitik', href: '/analytics' },
-  { icon: FileText, label: 'Kararlar', href: '/decisions', count: 3 },
-  { icon: Wine, label: 'Ajan Kulübü', href: '/club', count: 12 },
+  { icon: FileText, label: 'Kararlar', href: '/decisions' },
+  { icon: Wine, label: 'Ajan Kulübü', href: '/club' },
   { icon: Settings, label: 'Ayarlar', href: '/settings' },
 ];
 
@@ -34,9 +34,6 @@ export function Sidebar() {
             <NavLink key={item.href} to={item.href} end={item.href === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               <Icon size={17} />
               <span>{item.label}</span>
-              {item.count && (
-                <span className="ml-auto text-xs bdg bdg-c" style={{ fontSize: '10px' }}>{item.count}</span>
-              )}
             </NavLink>
           );
         })}
